@@ -61,7 +61,6 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 };
 
 userSchema.methods.generateAccessToken = async function () {
-    console.log("Access Token");
     const payload = {
         _id: this._id,
         email: this.email,
@@ -72,8 +71,6 @@ userSchema.methods.generateAccessToken = async function () {
     const token = await jwt.sign(payload, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
     });
-
-    console.log("userToken :", token);
 
     return token;
 };

@@ -3,9 +3,9 @@ import { Video } from "../model/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uploadCloudinary } from "../utils/cloudinary.js";
+import { deleteCloudinary, uploadCloudinary } from "../utils/cloudinary.js";
 
-const uploadVideo = asyncHandler(async (req, res) => {
+const publishAVideo = asyncHandler(async (req, res) => {
     // 1. get data from req.body
     // 2. validate data,
     // 3. get files
@@ -67,26 +67,43 @@ const uploadVideo = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, video, "Video uploaded successfully"));
 });
 
-const updateVideoDetails = asyncHandler(async (req, res) => {
-    // get data
-    // validate date
-    // find video and update the new data
-    // return res
+const updateVideo = asyncHandler(async (req, res) => {
+    // 1. get videoId, data and thumbnail
+    // 2. validate inputs
+    // 3. find video by id
+    // 4. delete previous thumbnail to update new
+    // 5. update new thumbnail
+    // 6. update video on db
+    // 7. return res
 
+    const { videoId } = req.params;
     const { title, description } = req.body;
+    const thumbnailLocalPath = req.file?.thumbnail;
 
-    if (!(title || description)) {
+    if (!(title || description || thumbnail)) {
         throw new ApiError(400, "title or description missing");
     }
 
-    const video = await Video.findByIdAndUpdate(req.params.id, {
+    const video = await Video.findById(videoId);
+    if (!video) {
+        throw new ApiError(404, "Invalid video id");
+    }
+
+    let thumbnail;
+    if (thumbnailLocalPath) {
+        await deleteCloudinary(video.videoFile);
+        thumbnail = await uploadCloudinary(thumbnailLocalPath);
+    }
+
+    const updatedVideo = await Video.findByIdAndUpdate(videoId, {
         $set: {
             title,
             description,
+            thumbnail: thumbnail?.url,
         },
     });
 
-    if (!video) {
+    if (!updatedVideo) {
         throw new ApiError(
             403,
             "something went wrong while updating details of video"
@@ -98,7 +115,7 @@ const updateVideoDetails = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200,
-                video,
+                updatedVideo,
                 "title or description updated successfully"
             )
         );
@@ -154,6 +171,111 @@ const getAllVideosOfUser = asyncHandler(async (req, res) => {
         );
 });
 
-const deleteVideos = asyncHandler(async (req, res) => {});
+const deleteVideo = asyncHandler(async (req, res) => {
+    // 1. get video id
+    // 3. validate input
+    // 4. find video
+    // 5. validate response
+    // 6. delete thumbnail & video from cloudinary
+    // 7. delete video from db
+    // 8. return res
 
-export { uploadVideo, updateVideoDetails, getAllVideosOfUser };
+    const { videoId } = req.params;
+
+    if (!videoId) {
+        throw new ApiError(400, "video id is required");
+    }
+
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found in this id");
+    }
+
+    await deleteCloudinary(video.thumbnail);
+    await deleteCloudinary(video.videoFile);
+
+    await Video.findByIdAndDelete(videoId);
+
+    return res.status(204).end();
+});
+
+const getVideoById = asyncHandler(async (req, res) => {
+    // 1. get video id
+    // 2. validate -> id
+    // 3. fetch video from db
+    // 4. validate response
+    // 5. return response
+
+    const { videoId } = req.params;
+
+    if (!videoId) {
+        throw new ApiError(400, "video id is missing");
+    }
+
+    const video = await Video.findById(videoId);
+
+    if (!video) {
+        throw new ApiError(404, "Video not found on this id");
+    }
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, video, "video fetched successfully"));
+});
+
+const togglePublishStatus = asyncHandler(async (req, res) => {
+    // 1. get video id
+    // 2. validate input
+    // 3. fetch video from db
+    // 4. validate response
+    // 5. if video publish then hide it or vice versa
+    // 6. validate response
+    // 7. return res
+
+    const { videoId } = req.params;
+
+    if (!videoId) {
+        throw new ApiError(400, "Video id is required");
+    }
+
+    const updatedVideo = await Video.updateOne(
+        { _id: videoId },
+        {
+            $set: {
+                isPublished: {
+                    $cond: {
+                        if: {
+                            $eq: ["$isPublished", true],
+                        },
+                        then: false,
+                        else: true,
+                    },
+                },
+            },
+        }
+    );
+
+    if (!updateVideo) {
+        throw new ApiError(404, "video not found on this id");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                updateVideo,
+                "publish state updated successfully"
+            )
+        );
+});
+
+export {
+    publishAVideo,
+    updateVideo,
+    getAllVideosOfUser,
+    getVideoById,
+    deleteVideo,
+    togglePublishStatus,
+};

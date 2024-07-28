@@ -2,15 +2,17 @@ import { Router } from "express";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import {
     getAllVideosOfUser,
-    updateVideoDetails,
-    uploadVideo,
+    publishAVideo,
+    getVideoById,
+    deleteVideo,
 } from "../controllers/video.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 
 const router = Router();
 
-router.route("/upload-video").post(
-    verifyJWT,
+router.use(verifyJWT);
+
+router.route("/").post(
     upload.fields([
         {
             name: "thumbnail",
@@ -21,10 +23,16 @@ router.route("/upload-video").post(
             maxCount: 1,
         },
     ]),
-    uploadVideo
+    publishAVideo
 );
 
-router.route("/update-details/:id").post(verifyJWT, updateVideoDetails);
-router.route("/fetch-all-videos").get(verifyJWT, getAllVideosOfUser);
+router
+    .route("/:videoId")
+    .get(getVideoById)
+    .delete(deleteVideo)
+    .patch(upload.single("thumbnail"), updateVideo);
+
+router.route("/fetch-all-videos").get(getAllVideosOfUser);
+router.route("/toggle/publish/:videoId").get(getAllVideosOfUser);
 
 export default router;

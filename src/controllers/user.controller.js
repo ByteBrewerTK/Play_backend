@@ -1,10 +1,11 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../model/user.model.js";
-import { uploadCloudinary } from "../utils/cloudinary.js";
+import { deleteCloudinary, uploadCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import { Video } from "../model/video.model.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -174,7 +175,6 @@ const loginUser = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 {
-                    user,
                     loggedInUser,
                     refreshToken,
                 },
@@ -201,6 +201,29 @@ const logoutUser = asyncHandler(async (req, res) => {
         .clearCookie("accessToken", options)
         .clearCookie("refreshToken", options)
         .json(new ApiResponse(200, {}, "User Logged out"));
+});
+
+const deleteUser = asyncHandler(async (req, res) => {
+    // 1. get details
+    // 2. delete videos of this user
+    // 3. delete avatar and coverImage
+    // 4. delete the user
+    // 5. return res
+
+    const { _id, avatar, coverImage } = req.user;
+
+    await Video.deleteMany({ owner: _id });
+
+    await deleteCloudinary(avatar);
+    await deleteCloudinary(coverImage);
+
+    await User.findByIdAndDelete(_id);
+
+    return res
+        .status(204)
+        .clearCookie("accessToken")
+        .clearCookie("refreshToken")
+        .end();
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
@@ -299,6 +322,7 @@ const changePassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
+    deleteCloudinary(req.user.avatar);
     return res
         .status(200)
         .json(
@@ -566,4 +590,5 @@ export {
     updateCoverImage,
     getChannelProfile,
     getWatchHistory,
+    deleteUser,
 };

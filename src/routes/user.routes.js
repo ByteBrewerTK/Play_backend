@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
     changePassword,
+    deleteUser,
     getChannelProfile,
     getCurrentUser,
     getWatchHistory,
@@ -37,6 +38,7 @@ router.route("/login").post(loginUser);
 
 // Secure routes
 router.route("/logout").post(verifyJWT, logoutUser);
+router.route("/delete").delete(verifyJWT, deleteUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/change-password").post(verifyJWT, changePassword);
 router.route("/current-user").get(verifyJWT, getCurrentUser);

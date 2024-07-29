@@ -2,6 +2,7 @@ import { Tweet } from "../model/tweet.model.js";
 import { User } from "../model/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
 const createTweet = asyncHandler(async (req, res) => {
     // 1. get data from user

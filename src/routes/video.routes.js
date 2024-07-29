@@ -5,6 +5,7 @@ import {
     publishAVideo,
     getVideoById,
     deleteVideo,
+    updateVideo,
 } from "../controllers/video.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 

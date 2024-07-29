@@ -3,13 +3,19 @@ import { verifyJWT } from "../middleware/auth.middleware.js";
 import {
     createTweet,
     deleteTweet,
+    getTweetById,
+    getUserTweets,
     updateTweet,
 } from "../controllers/tweet.controller.js";
 
 const router = Router();
 
 router.use(verifyJWT);
-router.route("/").post(createTweet);
-router.route("/:tweetId").patch(updateTweet).delete(deleteTweet);
+router.route("/").post(createTweet).get(getUserTweets);
+router
+    .route("/:tweetId")
+    .get(getTweetById)
+    .patch(updateTweet)
+    .delete(deleteTweet);
 
 export default router;

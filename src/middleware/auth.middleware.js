@@ -16,7 +16,6 @@ export const verifyJWT = asyncHandler(async (req, _, next) => {
         if (!accessToken) {
             throw new ApiError(401, "Token is required");
         }
-        console.log("Access Token : ", accessToken);
 
         const decodedToken = await jwt.verify(
             accessToken,

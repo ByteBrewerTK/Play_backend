@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { User } from "../model/user.model.js";
 import { Video } from "../model/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -82,15 +83,25 @@ const updateVideo = asyncHandler(async (req, res) => {
 
     const { videoId } = req.params;
     const { title, description } = req.body;
-    const thumbnailLocalPath = req.file?.thumbnail;
+    const thumbnailLocalPath = req.file?.path;
 
-    if (!(title || description || thumbnail)) {
+    if (!(title || description || thumbnail || videoId)) {
         throw new ApiError(400, "title or description missing");
     }
+    console.log("thumbnailLocalPath : ", thumbnailLocalPath);
 
-    const video = await Video.findById(videoId);
+    const video = await Video.findOne({
+        $and: [
+            {
+                _id: videoId,
+            },
+            {
+                owner: req.user._id,
+            },
+        ],
+    });
     if (!video) {
-        throw new ApiError(404, "Invalid video id");
+        throw new ApiError(404, "video not found in this id or user");
     }
 
     let thumbnail;
@@ -98,14 +109,19 @@ const updateVideo = asyncHandler(async (req, res) => {
         await deleteCloudinary(video.videoFile);
         thumbnail = await uploadCloudinary(thumbnailLocalPath);
     }
+    console.log("thumbnail : ", thumbnail);
 
-    const updatedVideo = await Video.findByIdAndUpdate(videoId, {
-        $set: {
-            title,
-            description,
-            thumbnail: thumbnail?.url,
+    const updatedVideo = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $set: {
+                title,
+                description,
+                thumbnail: thumbnail?.url,
+            },
         },
-    });
+        { new: true }
+    );
 
     if (!updatedVideo) {
         throw new ApiError(
@@ -127,11 +143,11 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const getAllVideosOfUser = asyncHandler(async (req, res) => {
     // find user and use pipeline to extract all videos
-
-    const videos = await User.aggregate([
+    console.log("object");
+    const user = await User.aggregate([
         {
             $match: {
-                _id: req.user._id,
+                _id: new mongoose.Types.ObjectId(req.user._id),
             },
         },
         {
@@ -164,15 +180,13 @@ const getAllVideosOfUser = asyncHandler(async (req, res) => {
             },
         },
     ]);
-    if (!videos?.length) {
+    if (!user?.length) {
         throw new ApiError(404, "videos doesn't exists");
     }
 
     return res
         .status(200)
-        .json(
-            new ApiResponse(200, videos[0], "All videos fetched successfully")
-        );
+        .json(new ApiResponse(200, user[0], "All videos fetched successfully"));
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -244,35 +258,30 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     }
 
     const updatedVideo = await Video.updateOne(
-        { _id: videoId },
         {
-            $set: {
-                isPublished: {
-                    $cond: {
-                        if: {
-                            $eq: ["$isPublished", true],
+            $and: [{ _id: videoId }, { owner: req.user._id }],
+        },
+        [
+            {
+                $set: {
+                    isPublished: {
+                        $cond: {
+                            if: { $eq: ["$isPublished", true] },
+                            then: false,
+                            else: true,
                         },
-                        then: false,
-                        else: true,
                     },
                 },
             },
-        }
+        ]
     );
-
-    if (!updateVideo) {
+    if (!updateVideo.modifiedCount) {
         throw new ApiError(404, "video not found on this id");
     }
 
     return res
         .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                updateVideo,
-                "publish state updated successfully"
-            )
-        );
+        .json(new ApiResponse(200, {}, "publish state updated successfully"));
 });
 
 export {

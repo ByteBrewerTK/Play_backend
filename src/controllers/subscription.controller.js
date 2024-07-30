@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Subscription } from "../model/subscription.model.js";
 import { User } from "../model/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -74,10 +75,10 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
         throw new ApiError(400, "channel id is missing");
     }
 
-    const subscribersList = User.aggregate([
+    const subscribersList = await User.aggregate([
         {
             $match: {
-                _id: channelId,
+                _id: new mongoose.Types.ObjectId(channelId),
             },
         },
         {
@@ -131,7 +132,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
     // 2. validate response
     // 3. return res
 
-    const subscribedChannel = await User.aggregate([
+    const subscribedChannels = await User.aggregate([
         {
             $match: {
                 _id: req.user._id,
@@ -139,7 +140,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
-                form: "subscriptions",
+                from: "subscriptions",
                 localField: "_id",
                 foreignField: "subscriber",
                 as: "subscribedChannels",
@@ -159,17 +160,28 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
                 username: 1,
                 avatar: 1,
                 coverImage: 1,
-                channel,
+                subscribedChannelsCount: 1,
+                subscribedChannels: 1,
             },
         },
     ]);
 
-    if (!subscribedChannel) {
+    if (!subscribedChannels) {
         throw new ApiError(
             500,
             "Something went wrong while fetching all subscribed channels"
         );
     }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                subscribedChannels,
+                "Subscribed channel fetched successfully"
+            )
+        );
 });
 
 export { toggleSubscription, getUserChannelSubscribers, getSubscribedChannels };

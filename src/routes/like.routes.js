@@ -7,6 +7,6 @@ const router = Router();
 router.use(verifyJWT);
 
 router.route("/").get(getLikedVideos);
-router.route("/:entityType/:entityId").post(toggleLike);
+router.route("/toggle/:entityType/:entityId").patch(toggleLike);
 
 export default router;

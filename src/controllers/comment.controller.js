@@ -62,7 +62,7 @@ const updateComment = asyncHandler(async (req, res) => {
         {
             content,
         }
-    );
+    ).populate();
 
     if (!updatedComment) {
         throw new ApiError(500, "something went wrong while updating comment");
@@ -70,7 +70,7 @@ const updateComment = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, updateComment, "comment updated"));
+        .json(new ApiResponse(200, updatedComment, "comment updated"));
 });
 
 const deleteComment = asyncHandler(async (req, res) => {
@@ -85,13 +85,11 @@ const deleteComment = asyncHandler(async (req, res) => {
         owner: req.user._id,
     });
 
-    if (!commentId.deletedCount) {
+    if (!deletedComment.deletedCount) {
         throw new ApiError(500, "something went wrong while deleting comment");
     }
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, deletedComment, "comment deleted"));
+    return res.status(204).end();
 });
 
 export { getVideoComments, addComment, updateComment, deleteComment };

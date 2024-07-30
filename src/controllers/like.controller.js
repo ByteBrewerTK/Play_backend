@@ -27,7 +27,7 @@ const toggleLike = asyncHandler(async (req, res) => {
 
     if (existingLike) {
         await Like.deleteOne({ _id: existingLike._id });
-        return res.status(200).json(200, {}, "Like removed");
+        return res.status(200).json(new ApiResponse(200, {}, "Like removed"));
     }
 
     const newLike = new Like({
@@ -38,40 +38,49 @@ const toggleLike = asyncHandler(async (req, res) => {
 
     await newLike.save();
 
-    return res.status(200).json(200, newLike, "Like added");
+    return res.status(200).json(new ApiResponse(200, newLike, "Like added"));
 });
 
 const getLikedVideos = asyncHandler(async (req, res) => {
-    const likedVideos = await User.aggregate([
+    const likedVideos = await Like.aggregate([
         {
             $match: {
-                _id: req.user._id,
+                user: req.user._id,
+                onModel: "Video",
             },
         },
         {
             $lookup: {
-                form: "likes",
-                localField: "_id",
-                foreignField: "user",
+                from: "videos",
+                localField: "entity",
+                foreignField: "_id",
                 as: "likedVideos",
             },
         },
         {
             $unwind: "$likedVideos",
         },
+
         {
-            $match: {
-                onModel: "Video",
-            },
-        },
-        {
-            $project: {
-                fullName: 1,
-                email: 1,
-                username: 1,
-                avatar: 1,
-                coverImage: 1,
-                likedVideos: 1,
+            $facet: {
+                likedVideos: [
+                    {
+                        $project: {
+                            _id: "$likedVideos._id",
+                            owner: "$likedVideos.owner",
+                            title: "$likedVideos.title",
+                            thumbnail: "$likedVideos.thumbnail",
+                            duration: "$likedVideos.duration",
+                            views: "$likedVideos.views",
+                            createdAt: "$likedVideos.createdAt",
+                        },
+                    },
+                ],
+                totalLikedVideos: [
+                    {
+                        $count: "count",
+                    },
+                ],
             },
         },
     ]);
@@ -79,7 +88,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
     if (!likedVideos) {
         throw new ApiError(
             500,
-            "Something went wrong while fetching all liked videos"
+            "something went wrong while fetching all liked videos"
         );
     }
 

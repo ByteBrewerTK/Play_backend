@@ -5,6 +5,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { deleteCloudinary, uploadCloudinary } from "../utils/cloudinary.js";
+import { Like } from "../model/like.model.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
@@ -31,7 +32,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
             $project: {
                 thumbnail: 1,
                 title: 1,
-                duration : 1
+                duration: 1,
             },
         },
     ]);
@@ -276,15 +277,66 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "video id is missing");
     }
 
-    const video = await Video.findById(videoId);
+    const videosAggregate = await Video.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(videoId),
+            },
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "entity",
+                as: "likedVideos",
+            },
+        },
+        {
+            $addFields: {
+                likes: {
+                    $size: "$likedVideos",
+                },
+            },
+        },
 
-    if (!video) {
-        throw new ApiError(404, "Video not found on this id");
+        {
+            $project: {
+                title: 1,
+                thumbnail: 1,
+                videoFile: 1,
+                description: 1,
+                duration: 1,
+                views: 1,
+                likes: 1,
+                createdAt: 1,
+            },
+        },
+    ]);
+
+    const video = await Video.findByIdAndUpdate(
+        videoId,
+        {
+            $inc: {
+                views: 1,
+            },
+        },
+        { new: true }
+    );
+
+    if (!(videosAggregate.length > 0 || video)) {
+        throw new ApiError(500, "Something went wrong while fetching video");
     }
+
 
     return res
         .status(200)
-        .json(new ApiResponse(200, video, "video fetched successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                videosAggregate[0],
+                "video fetched successfully"
+            )
+        );
 });
 
 const togglePublishStatus = asyncHandler(async (req, res) => {

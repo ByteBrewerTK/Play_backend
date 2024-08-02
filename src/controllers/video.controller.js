@@ -10,29 +10,51 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
     //TODO: get all videos based on query, sort, pagination
 
-    const options = {
-        page,
-        limit,
-    };
+    if (!(sortBy && sortType && userId)) {
+        throw new ApiError(400, "required fields are missing");
+    }
+
+    const sortOrder = sortType === "desc" ? -1 : 1;
 
     const videosAggregate = Video.aggregate([
+        {
+            $match: {
+                owner: new mongoose.Types.ObjectId(userId),
+            },
+        },
+        {
+            $sort: {
+                [sortBy]: sortOrder,
+            },
+        },
         {
             $project: {
                 thumbnail: 1,
                 title: 1,
+                duration : 1
             },
         },
     ]);
+    const options = {
+        page: parseInt(page),
+        limit: parseInt(limit),
+    };
 
     const result = await Video.aggregatePaginate(videosAggregate, options);
 
-
-    console.log("video : ", options);
+    if (!result) {
+        throw new ApiError(
+            500,
+            "Something went wrong while fetch all the videos"
+        );
+    }
+    console.log("result : ", options);
 
     return res
         .status(200)
         .json(new ApiResponse(200, result, "fetched successfully"));
 });
+
 const publishAVideo = asyncHandler(async (req, res) => {
     // 1. get data from req.body
     // 2. validate data,

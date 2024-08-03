@@ -327,7 +327,6 @@ const getVideoById = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Something went wrong while fetching video");
     }
 
-
     return res
         .status(200)
         .json(

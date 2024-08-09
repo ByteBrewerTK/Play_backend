@@ -5,24 +5,18 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { deleteCloudinary, uploadCloudinary } from "../utils/cloudinary.js";
-import { Like } from "../model/like.model.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
-    const { page = 1, limit = 10, query, sortBy, sortType, userId } = req.query;
+    const { page = 1, limit = 10, query, sortBy, sortType } = req.query;
     //TODO: get all videos based on query, sort, pagination
 
-    if (!(sortBy && sortType && userId)) {
+    if (!(sortBy && sortType )) {
         throw new ApiError(400, "required fields are missing");
     }
 
     const sortOrder = sortType === "desc" ? -1 : 1;
 
     const videosAggregate = Video.aggregate([
-        {
-            $match: {
-                owner: new mongoose.Types.ObjectId(userId),
-            },
-        },
         {
             $sort: {
                 [sortBy]: sortOrder,
@@ -189,7 +183,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const getAllVideosOfUser = asyncHandler(async (req, res) => {
     // find user and use pipeline to extract all videos
-    console.log("object");
+    
     const user = await User.aggregate([
         {
             $match: {

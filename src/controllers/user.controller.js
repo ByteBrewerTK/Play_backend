@@ -176,10 +176,10 @@ const loginUser = asyncHandler(async (req, res) => {
                 200,
                 {
                     loggedInUser,
-                    tokens : {
+                    tokens: {
                         refreshToken,
-                        accessToken
-                    }
+                        accessToken,
+                    },
                 },
                 "user logged in successfully"
             )
@@ -241,7 +241,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         req.cookies?.refreshToken || req.body.refreshToken;
 
     if (!incomingRefreshToken) {
-        throw new ApiError(401, "Unauthorized access");
+        throw new ApiError(402, "Missing refreshToken");
     }
 
     try {

@@ -10,7 +10,7 @@ const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType } = req.query;
     //TODO: get all videos based on query, sort, pagination
 
-    if (!(sortBy && sortType )) {
+    if (!(sortBy && sortType)) {
         throw new ApiError(400, "required fields are missing");
     }
 
@@ -183,7 +183,7 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const getAllVideosOfUser = asyncHandler(async (req, res) => {
     // find user and use pipeline to extract all videos
-    
+
     const user = await User.aggregate([
         {
             $match: {

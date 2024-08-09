@@ -90,7 +90,6 @@ const getChannelStats = asyncHandler(async (req, res) => {
 });
 
 const getChannelVideos = asyncHandler(async (req, res) => {
-
     const videos = await Video.find({ owner: req.user._id });
 
     if (!videos) {

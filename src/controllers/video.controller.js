@@ -23,10 +23,25 @@ const getAllVideos = asyncHandler(async (req, res) => {
             },
         },
         {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "videos",
+            },
+        },
+
+        {
+            $unwind: "$videos",
+        },
+
+        {
             $project: {
                 thumbnail: 1,
                 title: 1,
                 duration: 1,
+                views: 1,
+                avatar: "$videos.avatar",
             },
         },
     ]);

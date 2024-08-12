@@ -42,6 +42,12 @@ const userSchema = new Schema(
                 ref: "Video",
             },
         ],
+        isConfirmed: {
+            type: Boolean,
+            default: false,
+        },
+        confirmationToken: String,
+        confirmationExpires: Number,
         refreshToken: {
             type: String,
         },

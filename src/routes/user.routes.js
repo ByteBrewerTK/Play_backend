@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     changePassword,
     deleteUser,
+    emailConfirmation,
     getChannelProfile,
     getCurrentUser,
     getWatchHistory,
@@ -18,21 +19,8 @@ import { verifyJWT } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-router.route("/register").post(
-    upload.fields([
-        {
-            name: "avatar",
-            maxCount: 1,
-            public_id: "avatar",
-        },
-        {
-            name: "coverImage",
-            maxCount: 1,
-            public_id: "cover_image",
-        },
-    ]),
-    registerUser
-);
+router.route("/register").post(registerUser);
+router.route("/confirm").post(emailConfirmation);
 
 router.route("/login").post(loginUser);
 

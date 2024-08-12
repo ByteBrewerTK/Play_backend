@@ -27,12 +27,12 @@ const getAllVideos = asyncHandler(async (req, res) => {
                 from: "users",
                 localField: "owner",
                 foreignField: "_id",
-                as: "videos",
+                as: "ownerDetails",
             },
         },
 
         {
-            $unwind: "$videos",
+            $unwind: "$ownerDetails",
         },
 
         {
@@ -41,7 +41,9 @@ const getAllVideos = asyncHandler(async (req, res) => {
                 title: 1,
                 duration: 1,
                 views: 1,
-                avatar: "$videos.avatar",
+                avatar: "$ownerDetails.avatar",
+                username: "$ownerDetails.username",
+                channelName: "$ownerDetails.fullName",
             },
         },
     ]);
@@ -274,12 +276,6 @@ const deleteVideo = asyncHandler(async (req, res) => {
 });
 
 const getVideoById = asyncHandler(async (req, res) => {
-    // 1. get video id
-    // 2. validate -> id
-    // 3. fetch video from db
-    // 4. validate response
-    // 5. return response
-
     const { videoId } = req.params;
 
     if (!videoId) {
@@ -301,13 +297,83 @@ const getVideoById = asyncHandler(async (req, res) => {
             },
         },
         {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerDetails",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "subscriptions",
+                            let: { ownerId: "$_id" },
+                            pipeline: [
+                                {
+                                    $match: {
+                                        $expr: {
+                                            $and: [
+                                                {
+                                                    $eq: [
+                                                        "$channel",
+                                                        "$$ownerId",
+                                                    ],
+                                                },
+                                                {
+                                                    $eq: [
+                                                        "$subscriber",
+                                                        new mongoose.Types.ObjectId(
+                                                            req.user._id
+                                                        ),
+                                                    ],
+                                                },
+                                            ],
+                                        },
+                                    },
+                                },
+                                {
+                                    $project: {
+                                        isSubscribed: { $literal: true },
+                                    },
+                                },
+                            ],
+                            as: "subscribers",
+                        },
+                    },
+                    {
+                        $addFields: {
+                            isSubscribed: {
+                                $cond: {
+                                    if: { $gt: [{ $size: "$subscribers" }, 0] },
+                                    then: true,
+                                    else: false,
+                                },
+                            },
+                            subscribersCount: {
+                                $size: "$subscribers",
+                            },
+                        },
+                    },
+                    {
+                        $project: {
+                            fullName: 1,
+                            avatar: 1,
+                            subscribersCount: 1,
+                            isSubscribed: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $unwind: "$ownerDetails",
+        },
+        {
             $addFields: {
                 likes: {
                     $size: "$likedVideos",
                 },
             },
         },
-
         {
             $project: {
                 title: 1,
@@ -317,6 +383,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                 duration: 1,
                 views: 1,
                 likes: 1,
+                ownerDetails: 1,
                 createdAt: 1,
             },
         },
@@ -324,11 +391,7 @@ const getVideoById = asyncHandler(async (req, res) => {
 
     const video = await Video.findByIdAndUpdate(
         videoId,
-        {
-            $inc: {
-                views: 1,
-            },
-        },
+        { $inc: { views: 1 } },
         { new: true }
     );
 
@@ -342,7 +405,7 @@ const getVideoById = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 videosAggregate[0],
-                "video fetched successfully"
+                "Video fetched successfully"
             )
         );
 });

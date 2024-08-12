@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { Video } from "../model/video.model.js";
+import { sendMail } from "../utils/nodemailer.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -43,9 +44,11 @@ const registerUser = asyncHandler(async (req, res) => {
     // Access data from request body
     const { email, fullName, password } = req.body;
 
-    const [username] = email.split('@');
+    console.log(req.body);
 
-    const sanitizedUsername = username.replace(/[^a-zA-Z0-9]/g, '');
+    const [username] = email.split("@");
+
+    const sanitizedUsername = username.replace(/[^a-zA-Z0-9]/g, "");
     // Validation
     if (
         [sanitizedUsername, email, fullName, password].some(
@@ -58,13 +61,19 @@ const registerUser = asyncHandler(async (req, res) => {
     // Check - user already exits
 
     const existedUser = await User.findOne({
-        email 
+        email,
     });
 
     if (existedUser) {
         throw new ApiError(409, "User with email already exists");
     }
-    const avatar = `https://api.dicebear.com/9.x/initials/svg?seed=${fullName.replace(" ", "%20")}`;
+
+    const confirmationToken = crypto.randomUUID();
+    const confirmationExpires = Date.now() * 30 * 60 * 1000;
+    console.log("confirmationToken : ", confirmationToken);
+    console.log("confirmationExpires : ", confirmationExpires);
+
+    const avatar = `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(fullName)}`;
     // Create user object
     const user = await User.create({
         fullName,
@@ -72,8 +81,26 @@ const registerUser = asyncHandler(async (req, res) => {
         password,
         avatar,
         coverImage: "",
+        confirmationToken,
+        confirmationExpires,
         username: sanitizedUsername.toLowerCase(),
     });
+    console.log("user : ", user);
+
+    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm?e=${email}/${confirmationToken}`;
+
+    console.log("confirmationLink : ", confirmationLink);
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "Confirm your registration",
+        html: `<h1>Welcome, ${user.fullName}!</h1>
+                <p>Please confirm your registration by clicking the link below. This link will expire in 30 minutes:</p>
+                <a href="${confirmationLink}">Confirm Registration</a>`,
+    };
+
+    // mail sending
+    await sendMail(mailOptions);
 
     // Check user created or not
     const createUser = await User.findOne(user._id).select(
@@ -90,6 +117,33 @@ const registerUser = asyncHandler(async (req, res) => {
     return res
         .status(201)
         .json(new ApiResponse(200, createUser, "User registered successfully"));
+});
+
+const emailConfirmation = asyncHandler(async (req, res) => {
+    const { token, email } = req.params;
+
+    if (!(token && email)) {
+        throw new ApiError(404, "Invalid credentials");
+    }
+
+    const user = await User.findOne({
+        email,
+        confirmationToken: token,
+        confirmationExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+        throw new ApiError(400, "Confirmation token is invalid or expires");
+    }
+
+    user.isConfirmed = true;
+    user.confirmationToken = undefined;
+    user.confirmationExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, "Email successfully verified"));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -245,8 +299,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
         return res
             .status(200)
-            .cookie("accessToken", accessToken)
-            .cookie("refreshToken", refreshToken)
+            .cookie("accessToken", accessToken, options)
+            .cookie("refreshToken", refreshToken, options)
             .json(
                 new ApiResponse(
                     200,
@@ -569,4 +623,5 @@ export {
     getChannelProfile,
     getWatchHistory,
     deleteUser,
+    emailConfirmation,
 };

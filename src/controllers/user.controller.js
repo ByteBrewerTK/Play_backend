@@ -41,11 +41,14 @@ const registerUser = asyncHandler(async (req, res) => {
     // 10. return response
 
     // Access data from request body
-    const { username, email, fullName, password } = req.body;
+    const { email, fullName, password } = req.body;
 
+    const [username] = email.split('@');
+
+    const sanitizedUsername = username.replace(/[^a-zA-Z0-9]/g, '');
     // Validation
     if (
-        [username, email, fullName, password].some(
+        [sanitizedUsername, email, fullName, password].some(
             (field) => field?.trim() === ""
         )
     ) {
@@ -55,49 +58,21 @@ const registerUser = asyncHandler(async (req, res) => {
     // Check - user already exits
 
     const existedUser = await User.findOne({
-        $or: [{ username }, { email }],
+        email 
     });
 
     if (existedUser) {
-        throw new ApiError(409, "User with username or email already exists");
+        throw new ApiError(409, "User with email already exists");
     }
-
-    // Extract local path for the files
-    const avatarLocalPath = req.files?.avatar[0]?.path;
-    if (!avatarLocalPath) {
-        throw new ApiError(400, "Avatar image is required");
-    }
-
-    let coverImageLocalPath;
-
-    if (
-        req.files &&
-        Array.isArray(req.files.coverImage) &&
-        req.files.coverImage.length > 0
-    ) {
-        coverImageLocalPath = req.files.coverImage[0].path;
-    }
-
-    // Upload to cloudinary
-
-    const avatar = await uploadCloudinary(avatarLocalPath, "avatar");
-    const coverImage = await uploadCloudinary(
-        coverImageLocalPath,
-        "coverImage"
-    );
-
-    if (!avatar) {
-        throw new ApiError(400, "Avatar file is required");
-    }
-
+    const avatar = `https://api.dicebear.com/9.x/initials/svg?seed=${fullName.replace(" ", "%20")}`;
     // Create user object
     const user = await User.create({
         fullName,
         email,
         password,
-        username: username.toLowerCase(),
-        avatar: avatar.url,
-        coverImage: coverImage.url,
+        avatar,
+        coverImage: "",
+        username: sanitizedUsername.toLowerCase(),
     });
 
     // Check user created or not

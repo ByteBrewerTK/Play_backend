@@ -4,6 +4,22 @@ import cookieParser from "cookie-parser";
 
 const app = express();
 
+// app.use((req, res, next) => {
+//     res.header("Access-Control-Allow-Origin", "*");
+//     res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE");
+//     res.header("Access-Control-Allow-Headers", "Content-Type");
+//     next();
+// });
+
+// app.use(
+//     cors({
+//         origin: "https://your-frontend-domain.com", // Replace with your actual front-end domain
+//         methods: ["GET", "POST", "PUT", "DELETE"],
+//         allowedHeaders: ["Content-Type", "Authorization"],
+//     })
+// );
+
+app.use(cors());
 app.use(
     cors({
         origin: process.env.CORS_ORIGIN,
@@ -32,6 +48,9 @@ import commentRouter from "./routes/comment.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
 
 // Routes declaration
+app.get("/", (req, res) => {
+    res.send("<h1>Server is running</h1>");
+});
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/tweet", tweetRouter);

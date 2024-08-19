@@ -87,40 +87,38 @@ const registerUser = asyncHandler(async (req, res) => {
     });
     console.log("user : ", user);
 
-    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm?e=${email}/${confirmationToken}`;
+    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm/${confirmationToken}?e=${email}`;
 
     console.log("confirmationLink : ", confirmationLink);
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: user.email,
-        subject: "Confirm your registration",
-        html: `<h1>Welcome, ${user.fullName}!</h1>
-                <p>Please confirm your registration by clicking the link below. This link will expire in 30 minutes:</p>
-                <a href="${confirmationLink}">Confirm Registration</a>`,
-    };
 
     // mail sending
-    await sendMail(mailOptions);
 
     // Check user created or not
-    const createUser = await User.findOne(user._id).select(
+    const createdUser = await User.findOne(user._id).select(
         "-password -refreshToken"
     );
 
-    if (!createUser) {
+    if (!createdUser) {
         throw new ApiError(
             500,
             "Something went wrong while registering the user"
         );
     }
+    await sendMail(email, fullName, confirmationLink);
 
     return res
         .status(201)
-        .json(new ApiResponse(200, createUser, "User registered successfully"));
+        .json(
+            new ApiResponse(200, createdUser, "User registered successfully")
+        );
 });
 
 const emailConfirmation = asyncHandler(async (req, res) => {
-    const { token, email } = req.params;
+    const { token } = req.params;
+    const email = req.query?.e;
+
+    console.log("token : ", token);
+    console.log("email : ", email);
 
     if (!(token && email)) {
         throw new ApiError(404, "Invalid credentials");
@@ -145,6 +143,33 @@ const emailConfirmation = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, "Email successfully verified"));
 });
+const resendVerificationMail = asyncHandler(async (req, res) => {
+    const { email } = req.params;
+    console.log("email : ", email);
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        throw new ApiError(500, "Error occurred while finding user");
+    }
+
+    const token = crypto.randomUUID();
+
+    user.confirmationToken = token;
+    user.confirmationExpires = Date.now() * 30 * 60 * 1000;
+
+    await user.save({ validateBeforeSave: false });
+
+    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm/${token}?e=${email}`;
+
+    await sendMail(email, user.fullName, confirmationLink);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, {}, "Verification email sended successfully")
+        );
+});
 
 const loginUser = asyncHandler(async (req, res) => {
     // 1. Access data from body
@@ -157,18 +182,18 @@ const loginUser = asyncHandler(async (req, res) => {
     // 8. send all token with cookie
     // 9. send the response
 
-    const { email, username, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!(username || email)) {
-        throw new ApiError(400, "username or email is required");
+    if (!email.trim()) {
+        throw new ApiError(400, "email is required");
     }
 
-    if (!password.trim()) {
+    if (!password) {
         throw new ApiError(400, "password is required");
     }
 
     const user = await User.findOne({
-        $or: [{ username }, { email }],
+        email,
     });
 
     if (!user) {
@@ -176,6 +201,18 @@ const loginUser = asyncHandler(async (req, res) => {
             404,
             "user not registered on this username or email"
         );
+    }
+
+    if (!user.isConfirmed) {
+        return res
+            .status(403)
+            .json(
+                new ApiResponse(
+                    403,
+                    {},
+                    "Email is not verified ! Please verify the email first"
+                )
+            );
     }
 
     const isPasswordMatched = await user.isPasswordCorrect(password);
@@ -216,7 +253,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
-    const user = User.findByIdAndUpdate(req.user._id, {
+    const user = await User.findByIdAndUpdate(req.user._id, {
         $unset: {
             refreshToken: 1,
         },
@@ -624,4 +661,5 @@ export {
     getWatchHistory,
     deleteUser,
     emailConfirmation,
+    resendVerificationMail,
 };

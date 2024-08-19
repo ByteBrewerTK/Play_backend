@@ -10,6 +10,7 @@ import {
     logoutUser,
     refreshAccessToken,
     registerUser,
+    resendVerificationMail,
     updateAccountDetails,
     updateAvatar,
     updateCoverImage,
@@ -20,7 +21,8 @@ import { verifyJWT } from "../middleware/auth.middleware.js";
 const router = Router();
 
 router.route("/register").post(registerUser);
-router.route("/confirm").post(emailConfirmation);
+router.route("/confirm/:token").patch(emailConfirmation);
+router.route("/resend/confirm/:email").patch(resendVerificationMail);
 
 router.route("/login").post(loginUser);
 

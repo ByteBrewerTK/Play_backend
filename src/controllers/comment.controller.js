@@ -9,7 +9,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
     const {
         page = 1,
         limit = 10,
-        sortBy = "createAt",
+        sortBy = "createdAt",
         sortType = "asc",
     } = req.query;
 
@@ -18,6 +18,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
     }
 
     const sortOrder = sortType === "asc" ? 1 : -1;
+    const userId = req.user._id; // Assuming user ID is available in the request
 
     const aggregate = Comment.aggregate([
         {
@@ -30,10 +31,49 @@ const getVideoComments = asyncHandler(async (req, res) => {
                 [sortBy]: sortOrder,
             },
         },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "entity",
+                as: "likes",
+            },
+        },
+        {
+            $addFields: {
+                likes: { $size: "$likes" },
+                isLiked: {
+                    $in: [userId, "$likes.user"], // Check if the user has liked the comment
+                },
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "ownerDetails",
+            },
+        },
+        {
+            $unwind: "$ownerDetails",
+        },
+        {
+            $project: {
+                likes: 1,
+                isLiked: 1,
+                content: 1,
+                createdAt: 1,
+                owner: "$ownerDetails._id",
+                username: "$ownerDetails.username",
+                avatar: "$ownerDetails.avatar",
+            },
+        },
     ]);
+
     const options = {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
     };
 
     const result = await Comment.aggregatePaginate(aggregate, options);
@@ -46,7 +86,7 @@ const getVideoComments = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, result, "all comments are fetched"));
+        .json(new ApiResponse(200, result, "All comments are fetched"));
 });
 
 const addComment = asyncHandler(async (req, res) => {

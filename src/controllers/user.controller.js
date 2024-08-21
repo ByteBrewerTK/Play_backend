@@ -61,7 +61,7 @@ const registerUser = asyncHandler(async (req, res) => {
     // Check - user already exits
 
     const existedUser = await User.findOne({
-        email,
+        email: email,
     });
 
     if (existedUser) {
@@ -224,9 +224,9 @@ const loginUser = asyncHandler(async (req, res) => {
     const { accessToken, refreshToken } =
         await generateAccessTokenAndRefreshToken(user._id);
 
-    const loggedInUser = await User.findById(user._id).select(
-        "-password -refreshToken"
-    );
+    const loggedInUser = await User.findById(user._id)
+        .select("-password -refreshToken")
+        .populate("watchHistory");
 
     const options = {
         httpOnly: true,
@@ -391,7 +391,7 @@ const changePassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-    deleteCloudinary(req.user.avatar);
+    // deleteCloudinary(req.user.avatar);
     return res
         .status(200)
         .json(

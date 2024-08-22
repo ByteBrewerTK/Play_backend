@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { Video } from "../model/video.model.js";
 import { sendMail } from "../utils/nodemailer.js";
+import { validateReputedEmail } from "../utils/validateEmail.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -57,15 +58,23 @@ const registerUser = asyncHandler(async (req, res) => {
     ) {
         throw new ApiError(400, "All fields are required");
     }
+    const isReputedEmail = validateReputedEmail(email);
+    if (!isReputedEmail) {
+        throw new ApiError(422, "Email not allowed");
+    }
 
     // Check - user already exits
 
     const existedUser = await User.findOne({
-        email: email,
+        email,
     });
 
     if (existedUser) {
-        throw new ApiError(409, "User with email already exists");
+        if (!existedUser.isConfirmed) {
+            throw new ApiError(403, "User exist - Email not verified");
+        } else {
+            throw new ApiError(409, "User with email already exists");
+        }
     }
 
     const confirmationToken = crypto.randomUUID();
@@ -184,12 +193,14 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const { email, password } = req.body;
 
-    if (!email.trim()) {
-        throw new ApiError(400, "email is required");
+    if (!email.trim() && !password) {
+        throw new ApiError(400, "All fields are required");
     }
 
-    if (!password) {
-        throw new ApiError(400, "password is required");
+    const isValidEmail = validateReputedEmail(email);
+
+    if (!isValidEmail) {
+        throw new ApiError(422, "Email domain is not allowed");
     }
 
     const user = await User.findOne({
@@ -202,8 +213,9 @@ const loginUser = asyncHandler(async (req, res) => {
             "user not registered on this username or email"
         );
     }
+    console.log(user.isConfirmed);
 
-    if (!user.isConfirmed) {
+    if (user.isConfirmed === false) {
         return res
             .status(403)
             .json(

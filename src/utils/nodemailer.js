@@ -11,14 +11,18 @@ export const transporter = nodemailer.createTransport({
 });
 export const sendMail = (email, fullName, confirmationLink) => {
     const template = emailVerificationTemplate(
-        fullName.split(" "),
+        fullName.split(" ")[0],
         confirmationLink
     );
     const mailOptions = {
-        from: process.env.EMAIL_USER,
+        from: `StreamIt ${process.env.MAIL_FROM}`,
         to: email,
         subject: "Confirm your registration",
         priority: "high",
+        headers: {
+            "X-Priority": "1",
+            "X-MSMail-Priority": "High", // High priority in Microsoft clients
+        },
         html: template,
     };
     transporter.sendMail(mailOptions, (error, info) => {

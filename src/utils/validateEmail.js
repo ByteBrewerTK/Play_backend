@@ -6,6 +6,8 @@ const allowedDomains = [
     "icloud.com",
     "aol.com",
     "protonmail.com",
+    "zohomail.com",
+    "zohomail.in",
 ];
 
 export const validateEmail = (email) => {
@@ -19,16 +21,5 @@ export const isReputedEmail = (email) => {
 };
 
 export const validateReputedEmail = (email) => {
-    if (!validateEmail(email)) {
-        console.log("Invalid email format");
-        return false;
-    }
-
-    if (!isReputedEmail(email)) {
-        console.log("Email domain is not allowed");
-        return false;
-    }
-
-    console.log("Email is valid and from a reputed domain");
-    return true;
+    return validateEmail(email) && isReputedEmail(email);
 };

@@ -8,6 +8,7 @@ const allowedDomains = [
     "protonmail.com",
     "zohomail.com",
     "zohomail.in",
+    "bytebrewer.site",
 ];
 
 export const validateEmail = (email) => {

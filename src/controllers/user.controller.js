@@ -421,9 +421,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     // 3. find user and update
     // 4. send response
 
-    const { fullName, email } = req.body;
+    const { fullName, username } = req.body;
 
-    if (!(fullName || email)) {
+    if (!(fullName || username)) {
         throw new ApiError(403, "All fields required");
     }
 
@@ -432,7 +432,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
         {
             $set: {
                 fullName,
-                email,
+                username,
             },
         },
         { new: true }
@@ -544,6 +544,21 @@ const getChannelProfile = asyncHandler(async (req, res) => {
         },
         {
             $lookup: {
+                from: "videos",
+                localField: "_id",
+                foreignField: "owner",
+                as: "videos",
+            },
+        },
+        {
+            $addFields: {
+                totalVideos: {
+                    $size: "$videos",
+                },
+            },
+        },
+        {
+            $lookup: {
                 from: "subscriptions",
                 localField: "_id",
                 foreignField: "channel",
@@ -582,6 +597,7 @@ const getChannelProfile = asyncHandler(async (req, res) => {
                 username: 1,
                 avatar: 1,
                 coverImage: 1,
+                totalVideos: 1,
                 subscribersCount: 1,
                 channelSubscribedTo: 1,
                 isSubscribed: 1,
@@ -659,6 +675,34 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         );
 });
 
+const checkUsernameAvailable = asyncHandler(async (req, res) => {
+    const { username } = req.params;
+
+    if (!username) {
+        throw new ApiError(400, "Username is required");
+    }
+
+    const exists = await User.findOne({ username });
+
+    if (exists) {
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    { isAvailable: false },
+                    "Username not available"
+                )
+            );
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(200, { isAvailable: true }, "Username is available")
+        );
+});
+
 export {
     registerUser,
     loginUser,
@@ -674,4 +718,5 @@ export {
     deleteUser,
     emailConfirmation,
     resendVerificationMail,
+    checkUsernameAvailable,
 };

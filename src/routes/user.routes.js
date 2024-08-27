@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
     changePassword,
+    checkUsernameAvailable,
     deleteUser,
     emailConfirmation,
     getChannelProfile,
@@ -25,6 +26,7 @@ router.route("/confirm/:token").patch(emailConfirmation);
 router.route("/resend/confirm/:email").patch(resendVerificationMail);
 
 router.route("/login").post(loginUser);
+router.route("/check/:username").get(checkUsernameAvailable);
 
 // Secure routes
 router.route("/logout").post(verifyJWT, logoutUser);

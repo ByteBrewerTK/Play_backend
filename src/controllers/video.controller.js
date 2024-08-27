@@ -219,11 +219,11 @@ const updateVideo = asyncHandler(async (req, res) => {
 
 const getAllVideosOfUser = asyncHandler(async (req, res) => {
     // find user and use pipeline to extract all videos
-
+    const { username } = req.params;
     const user = await User.aggregate([
         {
             $match: {
-                _id: new mongoose.Types.ObjectId(req.user._id),
+                username,
             },
         },
         {
@@ -236,22 +236,16 @@ const getAllVideosOfUser = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                username: 1,
-                email: 1,
-                avatar: 1,
                 allVideos: {
-                    $map: {
-                        input: "$allVideos",
-                        as: "video",
-                        in: {
-                            videoFile: "$$video.videoFile",
-                            thumbnail: "$$video.thumbnail",
-                            title: "$$video.title",
-                            description: "$$video.description",
-                            duration: "$$video.duration",
-                            views: "$$video.views",
-                        },
-                    },
+                    _id: 1,
+                    owner: "$_id",
+                    username: "$username",
+                    avatar: "$avatar",
+                    thumbnail: 1,
+                    title: 1,
+                    duration: 1,
+                    views: 1,
+                    createdAt: 1,
                 },
             },
         },
@@ -262,7 +256,13 @@ const getAllVideosOfUser = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, user[0], "All videos fetched successfully"));
+        .json(
+            new ApiResponse(
+                200,
+                user[0].allVideos,
+                "All videos fetched successfully"
+            )
+        );
 });
 
 const deleteVideo = asyncHandler(async (req, res) => {
@@ -400,6 +400,7 @@ const getVideoById = asyncHandler(async (req, res) => {
                     {
                         $project: {
                             fullName: 1,
+                            username: 1,
                             avatar: 1,
                             subscribersCount: 1,
                             isSubscribed: 1,

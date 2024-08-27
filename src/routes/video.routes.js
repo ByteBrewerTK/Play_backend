@@ -30,7 +30,7 @@ router.route("/").post(
 );
 
 router.route("/").get(getAllVideos);
-router.route("/fetch-all-videos").get(getAllVideosOfUser);
+router.route("/fetch-all-videos/:username").get(getAllVideosOfUser);
 
 router
     .route("/:videoId")

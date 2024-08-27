@@ -161,6 +161,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
                         $project: {
                             _id: "$channel._id",
                             fullName: "$channel.fullName",
+                            username: "$channel.username",
                             avatar: "$channel.avatar",
                         },
                     },
@@ -176,11 +177,6 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         },
         {
             $project: {
-                // fullName: 1,
-                // email: 1,
-                // username: 1,
-                // avatar: 1,
-                // coverImage: 1,
                 subscribedChannelsCount: 1,
                 subscribedChannels: 1,
             },
@@ -199,7 +195,7 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200,
-                subscribedChannels[0],
+                subscribedChannels[0].subscribedChannels,
                 "Subscribed channel fetched successfully"
             )
         );

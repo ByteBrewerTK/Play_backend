@@ -376,10 +376,14 @@ const changePassword = asyncHandler(async (req, res) => {
     // 5. find user and update the password
     // 6. send response
 
-    const { oldPassword, newPassword, confirmPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
-    if (!(oldPassword && newPassword && confirmPassword)) {
-        throw new ApiError(402, "All fields are required");
+    if (!(currentPassword && newPassword && confirmPassword)) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    if (!(newPassword === confirmPassword)) {
+        throw new ApiError(422, "New and confirm password is miss match");
     }
 
     const user = await User.findById(req.user._id);
@@ -388,10 +392,14 @@ const changePassword = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found while updating password");
     }
 
-    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+    const isPasswordCorrect = await user.isPasswordCorrect(currentPassword);
 
     if (!isPasswordCorrect) {
-        throw new ApiError(401, "Invalid old password");
+        throw new ApiError(403, "Invalid old password");
+    }
+    
+    if (!(newPassword === currentPassword)) {
+        throw new ApiError(409, "New password and current password is same");
     }
 
     user.password = newPassword;

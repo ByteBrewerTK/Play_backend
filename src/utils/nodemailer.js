@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import emailVerificationTemplate from "../templates/emailVerificationTemplate.js";
+import otpTemplate from "../templates/otpTemplate.js";
 export const transporter = nodemailer.createTransport({
     host: process.env.MAIL_HOST,
     port: 465,
@@ -9,15 +10,12 @@ export const transporter = nodemailer.createTransport({
         pass: process.env.MAIL_PASS,
     },
 });
-export const sendMail = (email, fullName, confirmationLink) => {
-    const template = emailVerificationTemplate(
-        fullName.split(" ")[0],
-        confirmationLink
-    );
+
+const sendMail = (email, template, subject) => {
     const mailOptions = {
         from: `StreamIt ${process.env.MAIL_FROM}`,
         to: email,
-        subject: "Confirm your registration",
+        subject: subject,
         priority: "high",
         headers: {
             "X-Priority": "1",
@@ -33,4 +31,16 @@ export const sendMail = (email, fullName, confirmationLink) => {
         }
         console.log("Confirmation email sent:", info.response);
     });
+};
+export const sendConfirmationOtp = (email, otpCode) => {
+    const template = otpTemplate(otpCode);
+    sendMail(email, template, "One-Time Password Inside");
+};
+export const sendVerificationMail = (email, fullName, confirmationLink) => {
+    const template = emailVerificationTemplate(
+        fullName.split(" ")[0],
+        confirmationLink
+    );
+
+    sendMail(email, template, "Confirm your registration");
 };

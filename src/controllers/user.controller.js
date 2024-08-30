@@ -1,13 +1,18 @@
+import mongoose from "mongoose";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../model/user.model.js";
 import { deleteCloudinary, uploadCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-import mongoose from "mongoose";
 import { Video } from "../model/video.model.js";
-import { sendMail } from "../utils/nodemailer.js";
+import {
+    sendConfirmationOtp,
+    sendVerificationMail,
+} from "../utils/nodemailer.js";
 import { validateReputedEmail } from "../utils/validateEmail.js";
+import generateOtp from "../utils/generateOtp.js";
+import { OTP } from "../model/otp.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -113,7 +118,7 @@ const registerUser = asyncHandler(async (req, res) => {
             "Something went wrong while registering the user"
         );
     }
-    await sendMail(email, fullName, confirmationLink);
+    await sendVerificationMail(email, fullName, confirmationLink);
 
     return res
         .status(201)
@@ -171,7 +176,7 @@ const resendVerificationMail = asyncHandler(async (req, res) => {
 
     const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm/${token}?e=${email}`;
 
-    await sendMail(email, user.fullName, confirmationLink);
+    await sendVerificationMail(email, user.fullName, confirmationLink);
 
     return res
         .status(200)
@@ -397,7 +402,7 @@ const changePassword = asyncHandler(async (req, res) => {
     if (!isPasswordCorrect) {
         throw new ApiError(403, "Invalid old password");
     }
-    
+
     if (!(newPassword === currentPassword)) {
         throw new ApiError(409, "New password and current password is same");
     }
@@ -410,6 +415,99 @@ const changePassword = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, "Password updated successfully"));
 });
 
+const updateNewEmail = asyncHandler(async (req, res) => {
+    const { otp } = req.body;
+    const userId = req.user._id;
+    const type = "Email";
+
+    const isOtpValid = await OTP.findOneAndDelete({
+        user: userId,
+        code: otp,
+        expiresAt: { $gt: Date.now() },
+        type,
+    });
+
+    if (!isOtpValid) {
+        throw new ApiError(403, "Invalid or expired OTP");
+    }
+    await OTP.deleteMany({ user: userId, type });
+
+    const updatedUser = await User.findOneAndUpdate(
+        { _id: userId, newEmail: { $exists: true } },
+        {
+            $set: { email: req.user.newEmail },
+            $unset: { newEmail: 1 },
+        },
+        { new: true }
+    );
+
+    if (!updatedUser) {
+        throw new ApiError(500, "Failed to update email. Please try again.");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                { email: updatedUser.email },
+                "Email successfully updated"
+            )
+        );
+});
+
+const changeEmailRequest = asyncHandler(async (req, res) => {
+    const { newEmail, password } = req.body;
+    const userId = req.user._id;
+    const type = "Email";
+
+    if (!newEmail || !password) {
+        throw new ApiError(400, "New email and password are required");
+    }
+
+    if (!validateReputedEmail(newEmail)) {
+        throw new ApiError(422, "Invalid email format or domain");
+    }
+
+    const user = await User.findById(userId);
+    if (!user || !(await user.isPasswordCorrect(password))) {
+        throw new ApiError(403, "Invalid credentials");
+    }
+
+    const existingUser = await User.findOne({ email: newEmail });
+    if (existingUser) {
+        throw new ApiError(409, "Email already in use");
+    }
+
+    const otp = generateOtp();
+    if (!otp) {
+        throw new ApiError(500, "Failed to generate OTP");
+    }
+
+    const otpExpiration = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    await OTP.deleteMany({ user: userId, type }),
+    await Promise.all([
+        User.findByIdAndUpdate(userId, { $set: { newEmail } }),
+        OTP.create({
+            code: otp,
+            user: userId,
+            expiresAt: otpExpiration,
+            type,
+        }),
+        sendConfirmationOtp(newEmail, otp),
+    ]);
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "Email change initiated. Please check your new email for OTP."
+            )
+        );
+});
 const getCurrentUser = asyncHandler(async (req, res) => {
     // deleteCloudinary(req.user.avatar);
     return res
@@ -717,6 +815,8 @@ export {
     logoutUser,
     refreshAccessToken,
     changePassword,
+    changeEmailRequest,
+    updateNewEmail,
     getCurrentUser,
     updateAccountDetails,
     updateAvatar,

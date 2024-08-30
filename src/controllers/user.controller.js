@@ -487,16 +487,16 @@ const changeEmailRequest = asyncHandler(async (req, res) => {
     const otpExpiration = Date.now() + 5 * 60 * 1000; // 5 minutes
 
     await OTP.deleteMany({ user: userId, type }),
-    await Promise.all([
-        User.findByIdAndUpdate(userId, { $set: { newEmail } }),
-        OTP.create({
-            code: otp,
-            user: userId,
-            expiresAt: otpExpiration,
-            type,
-        }),
-        sendConfirmationOtp(newEmail, otp),
-    ]);
+        await Promise.all([
+            User.findByIdAndUpdate(userId, { $set: { newEmail } }),
+            OTP.create({
+                code: otp,
+                user: userId,
+                expiresAt: otpExpiration,
+                type,
+            }),
+            sendConfirmationOtp(newEmail, otp),
+        ]);
 
     return res
         .status(200)

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import {
+    changeEmailRequest,
     changePassword,
+    updateNewEmail,
     checkUsernameAvailable,
     deleteUser,
     emailConfirmation,
@@ -33,6 +35,8 @@ router.route("/logout").post(verifyJWT, logoutUser);
 router.route("/delete").delete(verifyJWT, deleteUser);
 router.route("/refresh-token").post(refreshAccessToken);
 router.route("/change-password").post(verifyJWT, changePassword);
+router.route("/change-email").post(verifyJWT, changeEmailRequest);
+router.route("/verify-email-otp").post(verifyJWT, updateNewEmail);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
 router.route("/update-account-details").post(verifyJWT, updateAccountDetails);
 router

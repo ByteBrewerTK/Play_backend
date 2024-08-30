@@ -46,11 +46,10 @@ const userSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        newEmail: String,
         confirmationToken: String,
         confirmationExpires: Number,
-        refreshToken: {
-            type: String,
-        },
+        refreshToken: String,
     },
     { timestamps: true }
 );

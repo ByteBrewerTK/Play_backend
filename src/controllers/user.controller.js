@@ -403,7 +403,7 @@ const changePassword = asyncHandler(async (req, res) => {
         throw new ApiError(403, "Invalid old password");
     }
 
-    if (!(newPassword === currentPassword)) {
+    if (newPassword === currentPassword) {
         throw new ApiError(409, "New password and current password is same");
     }
 

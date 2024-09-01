@@ -781,6 +781,36 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         );
 });
 
+const removeFromWatchHistory = asyncHandler(async (req, res) => {
+    const { videoId } = req.params;
+    const userId = req.user._id;
+
+    const updatedUser = await User.updateOne(
+        { _id: userId },
+        {
+            $pull: {
+                watchHistory: videoId,
+            },
+        }
+    );
+    if (!updatedUser) {
+        throw newApiError(
+            500,
+            "Something went wrong while removing video from watch history"
+        );
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                {},
+                "Video successfully removed from watch history"
+            )
+        );
+});
+
 const checkUsernameAvailable = asyncHandler(async (req, res) => {
     const { username } = req.params;
 
@@ -823,6 +853,7 @@ export {
     updateCoverImage,
     getChannelProfile,
     getWatchHistory,
+    removeFromWatchHistory,
     deleteUser,
     emailConfirmation,
     resendVerificationMail,

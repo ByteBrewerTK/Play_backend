@@ -5,7 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
 const createPlaylist = asyncHandler(async (req, res) => {
-    const { name, description="" } = req.body;
+    const { name, description = "" } = req.body;
     const { privacyType } = req.params;
 
     if (!name) {

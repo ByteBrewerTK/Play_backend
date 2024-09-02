@@ -232,6 +232,23 @@ const getAllVideosOfUser = asyncHandler(async (req, res) => {
                 localField: "_id",
                 foreignField: "owner",
                 as: "allVideos",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "views",
+                            localField: "_id",
+                            foreignField: "video",
+                            as: "views",
+                        },
+                    },
+                    {
+                        $addFields: {
+                            views: {
+                                $size: "$views",
+                            },
+                        },
+                    },
+                ],
             },
         },
         {

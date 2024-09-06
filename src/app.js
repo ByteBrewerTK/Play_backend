@@ -35,7 +35,7 @@ import commentRouter from "./routes/comment.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
 
 // Routes declaration
-app.get("/", (req, res) => {
+app.get("/", (__, res) => {
     res.send("<h1>Server is running</h1>");
 });
 app.use("/api/v1/user", userRouter);

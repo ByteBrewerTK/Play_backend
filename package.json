@@ -6,7 +6,8 @@
   "main": "src/index.js",
   "scripts": {
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\"",
-    "dev": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\" && nodemon src/index.js"
+    "dev": "prettier --write \"src/**/*.{js,jsx,ts,tsx,json,css,scss,md}\" && nodemon src/index.js",
+    "start": "node src/node.js"
   },
   "keywords": [
     "javascript, backend"

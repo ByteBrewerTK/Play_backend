@@ -101,7 +101,7 @@ const registerUser = asyncHandler(async (req, res) => {
     });
     console.log("user : ", user);
 
-    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm/${confirmationToken}?e=${email}`;
+    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/auth/confirm/${confirmationToken}?e=${email}`;
 
     console.log("confirmationLink : ", confirmationLink);
 

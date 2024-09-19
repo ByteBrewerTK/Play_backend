@@ -174,7 +174,7 @@ const resendVerificationMail = asyncHandler(async (req, res) => {
 
     await user.save({ validateBeforeSave: false });
 
-    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/confirm/${token}?e=${email}`;
+    const confirmationLink = `${process.env.APP_VERIFICATION_URL}/auth/confirm/${token}?e=${email}`;
 
     await sendVerificationMail(email, user.fullName, confirmationLink);
 

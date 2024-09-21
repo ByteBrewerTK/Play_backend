@@ -29,7 +29,7 @@
     "nodemailer": "^6.9.15"
   },
   "devDependencies": {
-    "nodemon": "^3.1.6",
+    "nodemon": "^3.1.7",
     "prettier": "^3.3.3"
   }
 }

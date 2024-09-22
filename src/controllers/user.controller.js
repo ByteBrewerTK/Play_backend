@@ -157,6 +157,7 @@ const emailConfirmation = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, "Email successfully verified"));
 });
+
 const resendVerificationMail = asyncHandler(async (req, res) => {
     const { email } = req.params;
     console.log("email : ", email);

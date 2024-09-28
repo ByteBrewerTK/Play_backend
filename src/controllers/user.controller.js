@@ -766,6 +766,21 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                             },
                         },
                     },
+                    {
+                        $lookup: {
+                            from: "views",
+                            localField: "_id",
+                            foreignField: "video",
+                            as: "views",
+                        },
+                    },
+                    {
+                        $addFields: {
+                            views: {
+                                $size: "$views",
+                            },
+                        },
+                    },
                 ],
             },
         },

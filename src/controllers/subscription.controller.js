@@ -4,6 +4,7 @@ import { User } from "../model/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { Video } from "../model/video.model.js";
 const toggleSubscription = asyncHandler(async (req, res) => {
     // 1. get channel id
     // 2. validate
@@ -201,4 +202,47 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
         );
 });
 
-export { toggleSubscription, getUserChannelSubscribers, getSubscribedChannels };
+const getSubscriptionVideos = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    // const { page = 1, limit = 10, query, sortBy, sortType } = req.query;
+    //TODO: get all videos based on query, sort, pagination
+
+    // if (!(sortBy && sortType)) {
+    //     throw new ApiError(400, "required fields are missing");
+    // }
+    // const sortOrder = sortType === "desc" ? -1 : 1;
+
+    const VideoAggregate = await Subscription.aggregate([
+        {
+            $match: {
+                subscriber: userId,
+            },
+        },
+        {
+            $preset: [
+                {
+                    $lookup: {
+                        from: "videos",
+                        localField: "channel",
+                        foreignField: "owner",
+                        as: "videos",
+                    },
+                },
+            ],
+        },
+    ]);
+    if (!VideoAggregate) {
+        throw new ApiError(500, "Something went wrong");
+    }
+    return res
+        .status(200)
+        .json(new ApiResponse(200, VideoAggregate[0], "Video fetched"));
+});
+
+export {
+    toggleSubscription,
+    getUserChannelSubscribers,
+    getSubscribedChannels,
+    getSubscriptionVideos,
+};

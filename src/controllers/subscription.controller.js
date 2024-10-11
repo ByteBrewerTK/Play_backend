@@ -220,16 +220,12 @@ const getSubscriptionVideos = asyncHandler(async (req, res) => {
             },
         },
         {
-            $preset: [
-                {
-                    $lookup: {
-                        from: "videos",
-                        localField: "channel",
-                        foreignField: "owner",
-                        as: "videos",
-                    },
-                },
-            ],
+            $lookup: {
+                from: "videos",
+                localField: "channel",
+                foreignField: "owner",
+                as: "videos",
+            },
         },
     ]);
     if (!VideoAggregate) {

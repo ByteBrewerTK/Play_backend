@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { Playlist } from "../model/playlist.model.js";
 import { Video } from "../model/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -56,19 +57,103 @@ const getPlaylistById = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Playlist id is missing");
     }
 
-    const playlist = await Playlist.findOne({
-        _id: playlistId,
-        owner: req.user._id,
-    }).populate([
+    // const playlist = await Playlist.findOne({
+    //     _id: playlistId,
+    //     owner: req.user._id,
+    // }).populate([
+    //     {
+    //         path: "owner",
+    //         select: "fullName avatar",
+    //     },
+    //     {
+    //         path: "videos",
+    //         populate: {
+    //             path: "owner",
+    //             select: "avatar",
+    //         },
+    //     },
+    // ]);
+
+    const playlist = await Playlist.aggregate([
         {
-            path: "owner",
-            select: "fullName avatar",
+            $match: {
+                _id: new mongoose.Types.ObjectId(playlistId),
+            },
         },
         {
-            path: "videos",
-            populate: {
-                path: "owner",
-                select: "avatar",
+            $lookup: {
+                from: "videos",
+                localField: "videos",
+                foreignField: "_id",
+                as: "videos",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "views",
+                            localField: "_id",
+                            foreignField: "video",
+                            as: "views",
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                        },
+                    },
+                    {
+                        $project: {
+                            _id: 1,
+                            title: 1,
+                            thumbnail: 1,
+                            duration: 1,
+                            createdAt: 1,
+                            owner: { $arrayElemAt: ["$owner", 0] },
+                            views: { $size: "$views" },
+                        },
+                    },
+                    {
+                        $project: {
+                            "owner.username": 1,
+                            "owner.fullName": 1,
+                            title: 1,
+                            thumbnail: 1,
+                            views: 1,
+                            duration: 1,
+                            createdAt: 1,
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $lookup: {
+                from: "users",
+                localField: "owner",
+                foreignField: "_id",
+                as: "owner",
+            },
+        },
+        {
+            $project: {
+                name: 1,
+                description: 1,
+                privacyType: 1,
+                videos: 1,
+                owner: { $arrayElemAt: ["$owner", 0] }, 
+            },
+        },
+        {
+            $project: {
+                "owner.avatar": 1,
+                "owner.username": 1,
+                "owner.fullName": 1,
+                name: 1,
+                description: 1,
+                privacyType: 1,
+                videos: 1,
             },
         },
     ]);

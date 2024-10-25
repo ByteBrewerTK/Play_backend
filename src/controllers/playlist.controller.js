@@ -142,7 +142,7 @@ const getPlaylistById = asyncHandler(async (req, res) => {
                 description: 1,
                 privacyType: 1,
                 videos: 1,
-                owner: { $arrayElemAt: ["$owner", 0] }, 
+                owner: { $arrayElemAt: ["$owner", 0] },
             },
         },
         {
@@ -164,7 +164,9 @@ const getPlaylistById = asyncHandler(async (req, res) => {
 
     return res
         .status(200)
-        .json(new ApiResponse(200, playlist, "Playlist fetched successfully"));
+        .json(
+            new ApiResponse(200, playlist[0], "Playlist fetched successfully")
+        );
 });
 
 const addVideoToPlaylist = asyncHandler(async (req, res) => {

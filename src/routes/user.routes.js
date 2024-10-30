@@ -21,6 +21,7 @@ import {
 } from "../controllers/user.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
+import passport from "passport";
 
 const router = Router();
 
@@ -29,6 +30,17 @@ router.route("/confirm/:token").patch(emailConfirmation);
 router.route("/resend/confirm/:email").patch(resendVerificationMail);
 
 router.route("/login").post(loginUser);
+router.route("/login/auth0/google").get(
+    passport.authenticate("google", {
+        scope: ["profile"],
+    })
+);
+router.route("/loggedin").get(
+    passport.authenticate("google", {
+        scope: ["profile"],
+        successRedirect: process.env.APP_VERIFICATION_URL,
+    })
+);
 router.route("/check/:username").get(checkUsernameAvailable);
 
 // Secure routes

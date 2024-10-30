@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import initCronJobs from "./config/cron.js";
+import passport from "passport";
+import expressSession from "express-session";
 
 const app = express();
 
@@ -13,6 +15,18 @@ app.use(
         credentials: true,
     })
 );
+app.use(
+    expressSession({
+        secret: process.env.EXPRESS_SESSION_SECRET_KEY,
+        resave: false,
+        saveUninitialized: false,
+    })
+);
+app.use(passport.authenticate("session"));
+app.use(passport.initialize());
+app.use(passport.session());
+
+connectPassport();
 
 app.use(express.json({ limit: process.env.SERVER_LIMIT }));
 
@@ -33,6 +47,7 @@ import subscriptionRouter from "./routes/subscription.routes.js";
 import likeRouter from "./routes/like.routes.js";
 import commentRouter from "./routes/comment.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
+import { connectPassport } from "./utils/provider.js";
 
 // Routes declaration
 app.get("/", (__, res) => {

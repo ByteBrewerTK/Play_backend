@@ -34,7 +34,6 @@ const userSchema = new Schema(
         },
         password: {
             type: String,
-            required: [true, "Password is required"],
         },
         watchHistory: [
             {
@@ -45,6 +44,15 @@ const userSchema = new Schema(
         isConfirmed: {
             type: Boolean,
             default: false,
+        },
+        googleId: {
+            type: String,
+            unique: true,
+        },
+        role: {
+            type: String,
+            enum: ["admin", "user"],
+            default: "user",
         },
         newEmail: String,
         confirmationToken: String,

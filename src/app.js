@@ -47,7 +47,7 @@ import subscriptionRouter from "./routes/subscription.routes.js";
 import likeRouter from "./routes/like.routes.js";
 import commentRouter from "./routes/comment.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
-import { connectPassport } from "./utils/provider.js";
+import { connectPassport } from "./utils/Provider.js";
 
 // Routes declaration
 app.get("/", (__, res) => {

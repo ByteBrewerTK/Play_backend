@@ -32,15 +32,18 @@ router.route("/resend/confirm/:email").patch(resendVerificationMail);
 router.route("/login").post(loginUser);
 router.route("/login/auth0/google").get(
     passport.authenticate("google", {
-        scope: ["profile"],
+        scope: ["profile", "email"],
     })
 );
-router.route("/loggedin").get(
-    passport.authenticate("google", {
-        scope: ["profile"],
-        successRedirect: process.env.APP_VERIFICATION_URL,
-    })
-);
+// router.route("/loggedin").get(
+//     passport.authenticate("google", {
+//         scope: ["profile", "email"],
+//         successRedirect: process.env.APP_VERIFICATION_URL,
+//     })
+// );
+router.route("/login/auth0/google").get((req, res) => {
+    res.send("Logged In");
+});
 router.route("/check/:username").get(checkUsernameAvailable);
 
 // Secure routes

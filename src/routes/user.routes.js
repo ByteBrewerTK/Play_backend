@@ -30,7 +30,7 @@ router.route("/confirm/:token").patch(emailConfirmation);
 router.route("/resend/confirm/:email").patch(resendVerificationMail);
 
 router.route("/login").post(loginUser);
-router.route("/login/auth0/google").get(
+router.route("/login/google").get(
     passport.authenticate("google", {
         scope: ["profile", "email"],
     })
@@ -41,7 +41,7 @@ router.route("/login/auth0/google").get(
 //         successRedirect: process.env.APP_VERIFICATION_URL,
 //     })
 // );
-router.route("/login/auth0/google").get((req, res) => {
+router.get("/login/success", passport.authenticate("google"), (req, res) => {
     res.send("Logged In");
 });
 router.route("/check/:username").get(checkUsernameAvailable);

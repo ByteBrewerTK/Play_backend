@@ -15,6 +15,9 @@ export const connectPassport = () => {
                 const user = await User.findOne({
                     googleId: profile.id,
                 });
+                console.log("accessToken : ", accessToken);
+                console.log("refreshToken : ", accessToken);
+                console.log("profile : ", profile);
                 if (!user) {
                     const googleId = profile.id;
                     const username = googleId + profile.emails[0].value;

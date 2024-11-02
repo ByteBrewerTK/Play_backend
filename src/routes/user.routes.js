@@ -22,6 +22,7 @@ import {
 import { upload } from "../middleware/multer.middleware.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import passport from "passport";
+import { googleAuthController } from "../controllers/oauth.controller.js";
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.route("/confirm/:token").patch(emailConfirmation);
 router.route("/resend/confirm/:email").patch(resendVerificationMail);
 
 router.route("/login").post(loginUser);
-router.route("/login/google").get(
+router.route("/auth/google").get(
     passport.authenticate("google", {
         scope: ["profile", "email"],
     })
@@ -41,9 +42,13 @@ router.route("/login/google").get(
 //         successRedirect: process.env.APP_VERIFICATION_URL,
 //     })
 // );
-router.get("/login/success", passport.authenticate("google"), (req, res) => {
-    res.send("Logged In");
-});
+router.get(
+    "/login/success",
+    passport.authenticate("google", {
+        failureRedirect: `${process.env.APP_VERIFICATION_URL}/auth/login`,
+    }),
+    googleAuthController
+);
 router.route("/check/:username").get(checkUsernameAvailable);
 
 // Secure routes

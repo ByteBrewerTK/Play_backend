@@ -10,25 +10,32 @@ export const connectPassport = () => {
                 clientSecret: process.env.OAUTH_GOOGLE_CLIENT_SECRET,
                 callbackURL: process.env.OAUTH_GOOGLE_CALLBACK_URL,
             },
-            async function (accessToken, refreshToken, profile, done) {
+            async function (
+                googleAccessToken,
+                googleRefreshToken,
+                profile,
+                done
+            ) {
                 // database
+                const email = profile.emails[0].value;
                 const user = await User.findOne({
-                    googleId: profile.id,
+                    $or: [{ googleId: profile.id }, { email }],
                 });
-                console.log("accessToken : ", accessToken);
-                console.log("refreshToken : ", accessToken);
+                console.log("googleAccessToken : ", googleAccessToken);
+                console.log("googleRefreshToken : ", googleRefreshToken);
                 console.log("profile : ", profile);
                 if (!user) {
                     const googleId = profile.id;
-                    const username = googleId + profile.emails[0].value;
+                    const username = googleId + email;
                     const newUser = await User.create({
                         googleId,
                         username,
-                        refreshToken,
+                        googleRefreshToken,
+                        email,
                         fullName: profile.displayName,
                         avatar: profile.photos[0].value,
-                        email: profile.emails[0].value,
                     });
+
                     return done(null, newUser);
                 } else {
                     return done(null, user);

@@ -874,4 +874,5 @@ export {
     emailConfirmation,
     resendVerificationMail,
     checkUsernameAvailable,
+    generateAccessTokenAndRefreshToken,
 };

@@ -43,12 +43,17 @@ router.route("/auth/google").get(
 //     })
 // );
 router.get(
-    "/login/success",
-    passport.authenticate("google", {
-        failureRedirect: `${process.env.APP_VERIFICATION_URL}/auth/login`,
-    }),
-    googleAuthController
+    "/auth/google/callback",
+    passport.authenticate("google", { session: false }),
+    async (req, res) => {
+        const { accessToken, refreshToken } = generateTokens(req.user);
+        res.redirect(
+            `/?accessToken=${accessToken}&refreshToken=${refreshToken}`
+        );
+    }
 );
+
+router.get("/profile", googleAuthController);
 router.route("/check/:username").get(checkUsernameAvailable);
 
 // Secure routes

@@ -1,43 +1,50 @@
 import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
-import path from "path";
 
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
-const uploadCloudinary = async (localFilePath) => {
-    try {
-        // If local file is not available
-        if (!localFilePath) return null;
 
-        // upload the file in cloudinary
-        const response = await cloudinary.uploader.upload(localFilePath, {
-            resource_type: "auto",
-        });
+const uploadCloudinary = (fileStream) => {
+    return new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { resource_type: "auto" },
+            (error, result) => {
+                if (error) {
+                    console.error("Cloudinary upload error:", error);
+                    reject(new ApiError(500, "Failed to upload to Cloudinary"));
+                } else if (!result || !result.url) {
+                    console.error("Missing Cloudinary result URL");
+                    reject(new ApiError(500, "Cloudinary URL is missing"));
+                } else {
+                    console.log("Upload successful:", result);
+                    resolve(result);
+                }
+            }
+        );
 
-        // file has been uploaded successfully
-        console.log("File details : ", response);
+        fileStream.pipe(uploadStream);
 
-        // remove file from the server
-        fs.unlinkSync(localFilePath);
-        return response;
-    } catch (error) {
-        console.log("file uploading failed");
-        fs.unlinkSync(localFilePath); // remove the locally saved temporary file as the upload operation got failed
-        return null;
-    }
+        fileStream.on("end", () => console.log("File stream ended"));
+        fileStream.on("close", () => console.log("File stream closed"));
+        fileStream.on("error", (err) =>
+            console.error("File stream error:", err)
+        );
+    });
 };
 
+// Function to delete a file from Cloudinary by URL
 const deleteCloudinary = async (fileUrl) => {
     try {
+        // Extract public ID from file URL
         const publicId = path.basename(fileUrl, path.extname(fileUrl));
-        console.log(publicId);
+        console.log("Deleting file:", publicId);
+
         await cloudinary.uploader.destroy(publicId);
+        console.log("File deleted successfully");
     } catch (error) {
-        console.log("file uploading failed");
-        return null;
+        console.error("File deletion failed:", error);
     }
 };
 

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import Busboy from "busboy";
 import { User } from "../model/user.model.js";
 import { Video, View } from "../model/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
@@ -7,6 +8,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { deleteCloudinary, uploadCloudinary } from "../utils/cloudinary.js";
 import { Comment } from "../model/comment.model.js";
 import { Like } from "../model/like.model.js";
+import { v2 as cloudinary } from "cloudinary";
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegPath from "ffmpeg-static";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType } = req.query;
@@ -85,136 +89,261 @@ const getAllVideos = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, result, "fetched successfully"));
 });
 
-const publishAVideo = asyncHandler(async (req, res) => {
-    // 1. get data from req.body
-    // 2. validate data,
-    // 3. get files
-    // 4. validate input files
-    // 5. upload files to cloudinary
-    // 6. create video object on db,
-    // 7. return res
+ffmpeg.setFfmpegPath(ffmpegPath);
+const validateFields = (title, description) => {
+    const errors = [];
 
-    const { title, description } = req.body;
+    if (!title || typeof title !== "string" || title.trim().length < 3) {
+        errors.push("Title must be at least 3 characters long");
+    }
+    if (title && title.length > 100) {
+        errors.push("Title must not exceed 100 characters");
+    }
 
-    if (!(title && description)) {
-        throw new ApiError(
-            400,
-            "All field required title and description are required"
+    if (
+        !description ||
+        typeof description !== "string" ||
+        description.trim().length < 10
+    ) {
+        errors.push("Description must be at least 10 characters long");
+    }
+    if (description && description.length > 500) {
+        errors.push("Description must not exceed 500 characters");
+    }
+
+    return errors;
+};
+
+const handleFileUpload = (fieldname, file, filename, cloudinary) => {
+    return new Promise((resolve, reject) => {
+        const resource_type = fieldname === "thumbnail" ? "image" : "video";
+
+        const uploadStream = cloudinary.uploader.upload_stream(
+            { resource_type },
+            (error, result) => {
+                if (error) {
+                    console.error(`Error uploading ${fieldname}:`, error);
+                    reject(error);
+                    return;
+                }
+                resolve(result.secure_url);
+            }
         );
-    }
 
-    console.log(req.files);
-    const thumbnailLocalPath = req.files?.thumbnail[0]?.path;
-    const videoFileLocalPath = req.files?.videoFile[0]?.path;
-
-    console.log("thumbnailLocalPath : ", thumbnailLocalPath);
-    console.log("videoFileLocalPath : ", videoFileLocalPath);
-
-    if (!(thumbnailLocalPath && videoFileLocalPath)) {
-        throw new ApiError(400, "All files are required");
-    }
-
-    const thumbnail = await uploadCloudinary(thumbnailLocalPath, "thumbnail");
-    const videoFile = await uploadCloudinary(videoFileLocalPath, "videoFile");
-
-    if (!(thumbnail && videoFile)) {
-        throw new ApiError(
-            400,
-            "Files are missing after uploading to cloudinary "
-        );
-    }
-
-    console.log("thumbnail", thumbnail);
-    console.log("videoFile", videoFile);
-
-    const video = await Video.create({
-        videoFile: videoFile?.url,
-        thumbnail: thumbnail?.url,
-        owner: req.user._id,
-        duration: videoFile?.duration,
-        title,
-        description,
+        file.pipe(uploadStream);
     });
+};
+const getVideoDuration = (videoUrl) => {
+    return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(videoUrl, (err, metadata) => {
+            if (err) {
+                return reject(err);
+            }
+            const duration = metadata.format.duration;
+            resolve(duration);
+        });
+    });
+};
 
-    if (!video) {
-        throw new ApiError(
-            500,
-            "something went wrong while creating video obj on db"
-        );
-    }
+const publishAVideo = asyncHandler(async (req, res) => {
+    return new Promise((resolve, reject) => {
+        const busboy = Busboy({
+            headers: req.headers,
+            limits: {
+                fileSize: 100 * 1024 * 1024, // 100MB limit
+                files: 2, // Only allow 2 files (video and thumbnail)
+            },
+        });
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, video, "Video uploaded successfully"));
+        let thumbnailUrl = "";
+        let videoUrl = "";
+        let title = "";
+        let description = "";
+        const uploadPromises = [];
+
+        busboy.on("file", (fieldname, file, filename) => {
+            if (!["thumbnail", "videoFile"].includes(fieldname)) {
+                file.resume(); // Ignore unwanted files
+                return;
+            }
+
+            const uploadPromise = handleFileUpload(
+                fieldname,
+                file,
+                filename,
+                cloudinary
+            ).then((url) => {
+                if (fieldname === "thumbnail") thumbnailUrl = url;
+                if (fieldname === "videoFile") videoUrl = url;
+            });
+
+            uploadPromises.push(uploadPromise);
+        });
+
+        busboy.on("field", (fieldname, val) => {
+            if (fieldname === "title") title = val.trim();
+            if (fieldname === "description") description = val.trim();
+        });
+
+        busboy.on("finish", async () => {
+            try {
+                // Validate fields
+                const validationErrors = validateFields(title, description);
+                if (validationErrors.length > 0) {
+                    reject({
+                        status: 400,
+                        message: validationErrors.join(", "),
+                    });
+                    return;
+                }
+
+                // Wait for all uploads to complete
+                await Promise.all(uploadPromises);
+
+                // Verify both files were uploaded
+                if (!thumbnailUrl || !videoUrl) {
+                    reject({
+                        status: 400,
+                        message: "Both video and thumbnail are required",
+                    });
+                    return;
+                }
+
+                // Get video duration
+                const duration = await getVideoDuration(videoUrl);
+
+                resolve({
+                    status: 200,
+                    data: {
+                        videoUrl,
+                        thumbnailUrl,
+                        title,
+                        description,
+                        duration,
+                    },
+                    message: "Video uploaded successfully",
+                });
+            } catch (error) {
+                reject({
+                    status: 500,
+                    message: "Error processing uploads",
+                });
+            }
+        });
+
+        busboy.on("error", (error) => {
+            console.error("Busboy error:", error);
+            reject({
+                status: 500,
+                message: "Error processing request",
+            });
+        });
+
+        req.pipe(busboy);
+    })
+        .then(async (result) => {
+            const { title, description, videoUrl, thumbnailUrl, duration } =
+                result.data;
+            const video = await Video.create({
+                videoFile: videoUrl,
+                thumbnail: thumbnailUrl,
+                owner: req.user._id,
+                duration, // Add the duration here
+                title,
+                description,
+            });
+
+            if (!video) {
+                throw new ApiError(
+                    500,
+                    "Something went wrong while creating new video object on db"
+                );
+            }
+            return res
+                .status(result.status)
+                .json(new ApiResponse(result.status, video, result.message));
+        })
+        .catch((error) => {
+            return res
+                .status(error.status)
+                .json(new ApiResponse(error.status, null, error.message));
+        });
 });
-
 const updateVideo = asyncHandler(async (req, res) => {
-    // 1. get videoId, data and thumbnail
-    // 2. validate inputs
-    // 3. find video by id
-    // 4. delete previous thumbnail to update new
-    // 5. update new thumbnail
-    // 6. update video on db
-    // 7. return res
+    const busboy = Busboy({ headers: req.headers });
 
     const { videoId } = req.params;
     const { title, description } = req.body;
-    const thumbnailLocalPath = req.file?.path;
 
-    if (!(title || description || thumbnail || videoId)) {
-        throw new ApiError(400, "title or description missing");
+    if (!(title || description || videoId)) {
+        throw new ApiError(400, "Title, description, or videoId is missing");
     }
-    console.log("thumbnailLocalPath : ", thumbnailLocalPath);
 
+    // Validate if the video exists and belongs to the user
     const video = await Video.findOne({
-        $and: [
-            {
-                _id: videoId,
-            },
-            {
-                owner: req.user._id,
-            },
-        ],
+        _id: videoId,
+        owner: req.user._id,
     });
+
     if (!video) {
-        throw new ApiError(404, "video not found in this id or user");
+        throw new ApiError(404, "Video not found for this ID or user");
     }
 
-    let thumbnail;
-    if (thumbnailLocalPath) {
-        await deleteCloudinary(video.videoFile);
-        thumbnail = await uploadCloudinary(thumbnailLocalPath);
-    }
-    console.log("thumbnail : ", thumbnail);
+    let thumbnailUrl = video.thumbnail; // Retain the existing thumbnail URL in case a new one is not provided
 
-    const updatedVideo = await Video.findByIdAndUpdate(
-        videoId,
-        {
-            $set: {
-                title,
-                description,
-                thumbnail: thumbnail?.url,
+    busboy.on("file", async (fieldname, file, filename) => {
+        try {
+            // If the uploaded file is a thumbnail
+            if (fieldname === "thumbnail") {
+                console.log("file : ", file);
+                //TODO: Delete the previous thumbnail from Cloudinary
+                // await deleteCloudinary(video.thumbnail); // Ensure you call with the correct identifier for the thumbnail
+
+                // Upload the new thumbnail to Cloudinary
+                const uploadResult = await uploadCloudinary(file); // Adjust this function to accept a stream
+                thumbnailUrl = uploadResult.url; // Update thumbnailUrl with the newly uploaded thumbnail URL
+            }
+        } catch (error) {
+            throw new ApiError(
+                500,
+                "Error uploading thumbnail: " + error.message
+            );
+        }
+    });
+
+    busboy.on("finish", async () => {
+        // Proceed to update the video details in the database
+        const updatedVideo = await Video.findByIdAndUpdate(
+            videoId,
+            {
+                $set: {
+                    title,
+                    description,
+                    thumbnail: thumbnailUrl,
+                },
             },
-        },
-        { new: true }
-    );
-
-    if (!updatedVideo) {
-        throw new ApiError(
-            403,
-            "something went wrong while updating details of video"
+            { new: true }
         );
-    }
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                updatedVideo,
-                "title or description updated successfully"
-            )
-        );
+        if (!updatedVideo) {
+            throw new ApiError(
+                403,
+                "Something went wrong while updating video details"
+            );
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(
+                    200,
+                    updatedVideo,
+                    "Video details updated successfully"
+                )
+            );
+    });
+
+    req.pipe(busboy); // Pipe the request to Busboy for processing
 });
 
 const getAllVideosOfUser = asyncHandler(async (req, res) => {

@@ -18,6 +18,7 @@ import {
     updateAvatar,
     updateCoverImage,
     removeFromWatchHistory,
+    generateAccessTokenAndRefreshToken,
 } from "../controllers/user.controller.js";
 import { upload } from "../middleware/multer.middleware.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
@@ -46,9 +47,10 @@ router.get(
     "/auth/google/callback",
     passport.authenticate("google", { session: false }),
     async (req, res) => {
-        const { accessToken, refreshToken } = generateTokens(req.user);
+        const { accessToken, refreshToken } =
+            await generateAccessTokenAndRefreshToken(req.user._id);
         res.redirect(
-            `/?accessToken=${accessToken}&refreshToken=${refreshToken}`
+            `${process.env.APP_VERIFICATION_URL}/?accessToken=${accessToken}&refreshToken=${refreshToken}`
         );
     }
 );
@@ -65,13 +67,8 @@ router.route("/change-email").post(verifyJWT, changeEmailRequest);
 router.route("/verify-email-otp").post(verifyJWT, updateNewEmail);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
 router.route("/update-account-details").post(verifyJWT, updateAccountDetails);
-router
-    .route("/update-avatar")
-    .patch(verifyJWT, upload.single("avatar"), updateAvatar);
-router
-    .route("/update-coverImage")
-    .patch(verifyJWT, upload.single("coverImage"), updateCoverImage);
-
+router.patch("/update-avatar", verifyJWT, updateAvatar);
+router.route("/update-coverImage").patch(verifyJWT, updateCoverImage);
 router.route("/channel/:username").get(verifyJWT, getChannelProfile);
 router.route("/watch-history").get(verifyJWT, getWatchHistory);
 router

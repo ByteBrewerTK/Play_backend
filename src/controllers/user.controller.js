@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import Busboy from "busboy";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../model/user.model.js";
@@ -40,12 +41,11 @@ const registerUser = asyncHandler(async (req, res) => {
     // 2. Validation - check if any fields is empty
     // 3. Check if already exists
     // 4. check for images - avatar available
-    // 5. Upload images to cloudinary
-    // 6. Password encryption
-    // 7. Create user object - create entry in db
-    // 8. Remove password and refresh token field from response
-    // 9. Check for user creation
-    // 10. return response
+    // 5. Password encryption
+    // 6. Create user object - create entry in db
+    // 7. Remove password and refresh token field from response
+    // 8. Check for user creation
+    // 9. return response
 
     // Access data from request body
     const { email, fullName, password } = req.body;
@@ -560,74 +560,107 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateAvatar = asyncHandler(async (req, res) => {
-    // 1. get file
-    // 2. validate
-    // 3. upload to cloudinary
-    // 4. update avatar on db
-    // 4. return res
+    const busboy = Busboy({ headers: req.headers });
 
-    const avatarLocalPath = req.file?.path;
+    let fileReceived = false;
 
-    if (!avatarLocalPath) {
-        throw new ApiError(404, "avatar file missing : updateAvatar");
-    }
+    busboy.on("file", async (fieldname, file) => {
+        fileReceived = true;
 
-    const avatar = await uploadCloudinary(avatarLocalPath);
+        try {
+            // Upload file stream directly to Cloudinary
+            const uploadResult = await uploadCloudinary(file);
 
-    if (!avatar.url) {
-        throw new ApiError(404, "avatar cloud URL is missing : updateAvatar");
-    }
+            // Update the user's avatar in the database
+            const user = await User.findByIdAndUpdate(
+                req.user._id,
+                { $set: { avatar: uploadResult.url } },
+                { new: true }
+            ).select("-password");
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                avatar: avatar.url,
-            },
-        },
-        { new: true }
-    ).select("-password");
+            if (!user) {
+                throw new ApiError(500, "Failed to update avatar in database");
+            }
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, user, "Avatar updated successfully"));
+            // Send response
+            return res
+                .status(200)
+                .json(
+                    new ApiResponse(200, user, "Avatar updated successfully")
+                );
+        } catch (error) {
+            throw new ApiError(
+                500,
+                "Something went wrong while updating avatar, Error : ",
+                error
+            );
+        }
+    });
+
+    busboy.on("finish", () => {
+        if (!fileReceived) {
+            throw new ApiError(400, "Avatar file missing: updateAvatar");
+        }
+    });
+
+    req.pipe(busboy);
 });
 
 const updateCoverImage = asyncHandler(async (req, res) => {
-    // 1. get file
-    // 2. validate
-    // 3. upload to cloudinary
-    // 4. update avatar on db
-    // 4. return res
+    const busboy = Busboy({ headers: req.headers });
 
-    const coverImageLocalPath = req.file?.path;
+    let fileReceived = false; // Flag to check if the file was received
 
-    if (!coverImageLocalPath) {
-        throw new ApiError(404, "coverImage file missing : updateCoverImage");
-    }
+    busboy.on("file", async (fieldname, file) => {
+        fileReceived = true;
 
-    const coverImage = await uploadCloudinary(coverImageLocalPath);
+        try {
+            // Upload the file stream directly to Cloudinary
+            const uploadResult = await uploadCloudinary(file); // Adjust this function to accept a stream
 
-    if (!coverImage.url) {
-        throw new ApiError(
-            404,
-            "coverImage cloud URL is missing : updateCoverImage"
-        );
-    }
+            // Update the user's cover image in the database
+            const user = await User.findByIdAndUpdate(
+                req.user._id,
+                { $set: { coverImage: uploadResult.url } },
+                { new: true }
+            ).select("-password");
 
-    const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-            $set: {
-                coverImage: coverImage.url,
-            },
-        },
-        { new: true }
-    ).select("-password");
+            if (!user) {
+                throw new ApiError(
+                    500,
+                    "Failed to update cover image in database"
+                );
+            }
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, user, "CoverImage updated successfully"));
+            // Send response
+            return res
+                .status(200)
+                .json(
+                    new ApiResponse(
+                        200,
+                        user,
+                        "Cover image updated successfully"
+                    )
+                );
+        } catch (error) {
+            throw new ApiError(
+                500,
+                "Something went wrong while updating cover image",
+                error
+            );
+        }
+    });
+
+    busboy.on("finish", () => {
+        if (!fileReceived) {
+            throw new ApiError(
+                400,
+                "Cover image file missing: updateCoverImage"
+            );
+        }
+    });
+
+    req.pipe(busboy); // Pipe the request to Busboy for processing
 });
 
 const getChannelProfile = asyncHandler(async (req, res) => {

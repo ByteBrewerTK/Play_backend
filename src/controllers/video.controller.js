@@ -224,6 +224,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
                     message: "Video uploaded successfully",
                 });
             } catch (error) {
+                console.log("Processing upload error : ", error)
                 reject({
                     status: 500,
                     message: "Error processing uploads",

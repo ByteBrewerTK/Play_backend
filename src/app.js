@@ -1,46 +1,10 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import initCronJobs from "./config/cron.js";
 import passport from "passport";
 import expressSession from "express-session";
-
-const app = express();
-
-initCronJobs();
-app.use(cors());
-app.use(
-    cors({
-        origin: process.env.CORS_ORIGIN,
-        methods: "GET,POST,PATCH,DELETE",
-        allowedHeaders: ["Authorization", "Content-Type"],
-        credentials: true,
-    })
-);
-app.use(
-    expressSession({
-        secret: process.env.EXPRESS_SESSION_SECRET_KEY,
-        resave: false,
-        saveUninitialized: false,
-    })
-);
-app.use(passport.authenticate("session"));
-app.use(passport.initialize());
-app.use(passport.session());
-
-connectPassport();
-
-app.use(express.json({ limit: process.env.SERVER_LIMIT }));
-
-app.use(express.static("public"));
-
-app.use(
-    express.urlencoded({ extended: true, limit: process.env.SERVER_LIMIT })
-);
-
-app.use(cookieParser());
-
-// Routes importing
+import initCronJobs from "./config/cron.js";
+import { connectPassport } from "./utils/Provider.js";
 import userRouter from "./routes/user.routes.js";
 import videoRouter from "./routes/video.routes.js";
 import tweetRouter from "./routes/tweet.routes.js";
@@ -49,12 +13,52 @@ import subscriptionRouter from "./routes/subscription.routes.js";
 import likeRouter from "./routes/like.routes.js";
 import commentRouter from "./routes/comment.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
-import { connectPassport } from "./utils/Provider.js";
 
-// Routes declaration
+const app = express();
+
+// Middleware
+app.use(express.json({ limit: process.env.SERVER_LIMIT || "16kb" }));
+app.use(
+    express.urlencoded({
+        extended: true,
+        limit: process.env.SERVER_LIMIT || "1mb",
+    })
+);
+
+app.use(
+    cors({
+        origin: process.env.CORS_ORIGIN,
+        methods: ["GET", "POST", "PATCH", "DELETE"],
+        allowedHeaders: ["Authorization", "Content-Type"],
+        credentials: true,
+    })
+);
+
+app.use(
+    expressSession({
+        secret: process.env.EXPRESS_SESSION_SECRET_KEY,
+        resave: false,
+        saveUninitialized: false,
+    })
+);
+app.use(cookieParser());
+
+// Passport Configuration
+connectPassport();
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Initialize cron jobs
+initCronJobs();
+
+// Static Files
+app.use(express.static("public"));
+
+// Routes
 app.get("/", (__, res) => {
     res.send("<h1>Server is running</h1>");
 });
+
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/tweet", tweetRouter);

@@ -2,6 +2,13 @@ import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import passport from "passport";
 import { User } from "../model/user.model.js";
 
+function generateUniqueUsername(googleId, email) {
+    const emailPrefix = email.split("@")[0].slice(0, 6);
+    const idSuffix = googleId.slice(0, 4);
+    const uniqueUsername = `${emailPrefix}_${idSuffix}`;
+    return uniqueUsername;
+}
+
 export const connectPassport = () => {
     passport.use(
         new GoogleStrategy(
@@ -21,12 +28,10 @@ export const connectPassport = () => {
                 const user = await User.findOne({
                     $or: [{ googleId: profile.id }, { email }],
                 });
-                console.log("googleAccessToken : ", googleAccessToken);
-                console.log("googleRefreshToken : ", googleRefreshToken);
                 console.log("profile : ", profile);
                 if (!user) {
                     const googleId = profile.id;
-                    const username = googleId + email;
+                    const username = generateUniqueUsername(googleId, email);
                     const newUser = await User.create({
                         googleId,
                         username,

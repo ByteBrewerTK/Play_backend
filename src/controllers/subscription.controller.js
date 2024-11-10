@@ -225,6 +225,51 @@ const getSubscriptionVideos = asyncHandler(async (req, res) => {
                 localField: "channel",
                 foreignField: "owner",
                 as: "videos",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                        },
+                    },
+                    {
+                        $unwind: "$owner",
+                    },
+                    {
+                        $lookup: {
+                            from: "views",
+                            localField: "owner._id",
+                            foreignField: "viewedBy",
+                            as: "views",
+                        },
+                    },
+                    {
+                        $addFields: {
+                            views: {
+                                $size: "$views",
+                            },
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $unwind: "$videos",
+        },
+        {
+            $project: {
+                _id: "$videos._id",
+                thumbnail: "$videos.thumbnail",
+                title: "$videos.title",
+                duration: "$videos.duration",
+                views: "$videos.views",
+                isPublished: "$videos.isPublished",
+                createdAt: "$videos.createdAt",
+                username: "$videos.owner.username",
+                channelName: "$videos.owner.fullName",
+                avatar: "$videos.owner.avatar",
             },
         },
     ]);
@@ -233,7 +278,7 @@ const getSubscriptionVideos = asyncHandler(async (req, res) => {
     }
     return res
         .status(200)
-        .json(new ApiResponse(200, VideoAggregate[0], "Video fetched"));
+        .json(new ApiResponse(200, VideoAggregate, "Video fetched"));
 });
 
 export {

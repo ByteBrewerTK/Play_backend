@@ -14,6 +14,7 @@ import {
 import { validateReputedEmail } from "../utils/validateEmail.js";
 import generateOtp from "../utils/generateOtp.js";
 import { OTP } from "../model/otp.js";
+import { Setting } from "../model/setting.model.js";
 
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
@@ -99,6 +100,7 @@ const registerUser = asyncHandler(async (req, res) => {
         confirmationExpires,
         username: sanitizedUsername.toLowerCase(),
     });
+
     console.log("user : ", user);
 
     const confirmationLink = `${process.env.APP_VERIFICATION_URL}/auth/confirm/${confirmationToken}?e=${email}`;
@@ -116,6 +118,15 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(
             500,
             "Something went wrong while registering the user"
+        );
+    }
+    const setting = await Setting.create({
+        user: user._id,
+    });
+    if (!setting) {
+        throw new ApiError(
+            500,
+            "Something went wrong while creating settings doc"
         );
     }
     await sendVerificationMail(email, fullName, confirmationLink);

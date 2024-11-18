@@ -16,6 +16,21 @@ import generateOtp from "../utils/generateOtp.js";
 import { OTP } from "../model/otp.js";
 import { Setting } from "../model/setting.model.js";
 
+const searchUser = asyncHandler(async (req, res) => {
+    const keyword = req.query.search
+        ? {
+              $or: [
+                  { name: { $regex: req.query.search, $options: "i" } },
+                  { email: { $regex: req.query.search, $options: "i" } },
+              ],
+          }
+        : {};
+    const users = await User.find(keyword).find({ _id: { $ne: req.user._id } });
+    return res
+        .status(200)
+        .json(new ApiResponse(200, users, "Successfully searched"));
+});
+
 const generateAccessTokenAndRefreshToken = async (userId) => {
     try {
         const user = await User.findById(userId);
@@ -900,6 +915,7 @@ const checkUsernameAvailable = asyncHandler(async (req, res) => {
 });
 
 export {
+    searchUser,
     registerUser,
     loginUser,
     logoutUser,

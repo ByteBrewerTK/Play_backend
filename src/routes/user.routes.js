@@ -19,14 +19,15 @@ import {
     updateCoverImage,
     removeFromWatchHistory,
     generateAccessTokenAndRefreshToken,
+    searchUser,
 } from "../controllers/user.controller.js";
-import { upload } from "../middleware/multer.middleware.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import passport from "passport";
 import { googleAuthController } from "../controllers/oauth.controller.js";
 
 const router = Router();
 
+router.route("/").get(verifyJWT, searchUser);
 router.route("/register").post(registerUser);
 router.route("/confirm/:token").patch(emailConfirmation);
 router.route("/resend/confirm/:email").patch(resendVerificationMail);

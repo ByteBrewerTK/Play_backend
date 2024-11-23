@@ -15,6 +15,7 @@ import commentRouter from "./routes/comment.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
 import settingRouter from "./routes/setting.routes.js";
 import chatRoute from "./routes/chat.routes.js";
+import messageRoute from "./routes/message.routes.js";
 
 const app = express();
 
@@ -71,5 +72,6 @@ app.use("/api/v1/comment", commentRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/settings", settingRouter);
 app.use("/api/v1/chat", chatRoute);
+app.use("/api/v1/message", messageRoute);
 
 export { app };

@@ -3,8 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import passport from "passport";
 import expressSession from "express-session";
-import initCronJobs from "./config/cron.js";
-import { connectPassport } from "./utils/Provider.js";
+
 import userRouter from "./routes/user.routes.js";
 import videoRouter from "./routes/video.routes.js";
 import tweetRouter from "./routes/tweet.routes.js";
@@ -45,14 +44,8 @@ app.use(
     })
 );
 app.use(cookieParser());
-
-// Passport Configuration
-connectPassport();
 app.use(passport.initialize());
 app.use(passport.session());
-
-// Initialize cron jobs
-initCronJobs();
 
 // Static Files
 app.use(express.static("public"));

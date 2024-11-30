@@ -25,7 +25,12 @@ connectDB()
         });
 
         io.on("connection", (socket) => {
-            console.log("Connected to socket : ", socket);
+            console.log("Connected to socket ");
+
+            socket.on("setup", (userData) => {
+                socket.join(userData._id);
+                socket.emit("connected");
+            });
         });
 
         // Initialize cron jobs

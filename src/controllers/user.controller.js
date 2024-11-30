@@ -11,10 +11,15 @@ import {
     sendConfirmationOtp,
     sendVerificationMail,
 } from "../utils/nodemailer.js";
-import { validateReputedEmail } from "../utils/validateEmail.js";
+import {
+    isReputedEmail,
+    validateReputedEmail,
+} from "../utils/validateEmail.js";
 import generateOtp from "../utils/generateOtp.js";
 import { OTP } from "../model/otp.js";
 import { Setting } from "../model/setting.model.js";
+
+const otpExpiration = () => Date.now() + 5 * 60 * 1000; // 5 minutes
 
 const searchUser = asyncHandler(async (req, res) => {
     const keyword = req.query.search
@@ -511,15 +516,13 @@ const changeEmailRequest = asyncHandler(async (req, res) => {
         throw new ApiError(500, "Failed to generate OTP");
     }
 
-    const otpExpiration = Date.now() + 5 * 60 * 1000; // 5 minutes
-
     await OTP.deleteMany({ user: userId, type }),
         await Promise.all([
             User.findByIdAndUpdate(userId, { $set: { newEmail } }),
             OTP.create({
                 code: otp,
                 user: userId,
-                expiresAt: otpExpiration,
+                expiresAt: otpExpiration(),
                 type,
             }),
             sendConfirmationOtp(newEmail, otp),
@@ -914,6 +917,34 @@ const checkUsernameAvailable = asyncHandler(async (req, res) => {
         );
 });
 
+const resetPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email.trim()) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    if (!isReputedEmail(email)) {
+        throw new ApiError(422, "Invalid email domain");
+    }
+
+    const isUserExisted = await User.findOne({ email });
+
+    if (!isUserExisted) {
+        throw new ApiError(404, "User not found");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                isUserExisted,
+                "Password reset request accepted"
+            )
+        );
+});
+
 export {
     searchUser,
     registerUser,
@@ -935,4 +966,5 @@ export {
     resendVerificationMail,
     checkUsernameAvailable,
     generateAccessTokenAndRefreshToken,
+    resetPassword,
 };

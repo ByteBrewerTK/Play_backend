@@ -4,10 +4,6 @@ const allowedDomains = [
     "outlook.com",
     "hotmail.com",
     "icloud.com",
-    "aol.com",
-    "protonmail.com",
-    "zohomail.com",
-    "zohomail.in",
     "bytebrewer.site",
 ];
 

@@ -34,7 +34,6 @@ const accessChat = asyncHandler(async (req, res) => {
         );
     } else {
         const newChatData = {
-            chatName: "sender",
             users: [req.user._id, userId],
             isGroupChat: false,
         };
@@ -108,6 +107,8 @@ const createGroup = asyncHandler(async (req, res) => {
     const newGroupData = {
         chatName: name,
         isGroupChat: true,
+        groupAvatar:
+            "https://res.cloudinary.com/dgmmooy1p/image/upload/v1732939691/Brand/Default_Images/default_group_profile_avatar.webp",
         users: parsedUsers,
         groupAdmin: req.user._id,
     };

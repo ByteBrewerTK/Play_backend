@@ -14,7 +14,7 @@ const otpSchema = new Schema({
     },
     type: {
         type: String,
-        enum: ["Email"],
+        enum: ["Email", "Reset"],
         required: true,
     },
     expiresAt: {

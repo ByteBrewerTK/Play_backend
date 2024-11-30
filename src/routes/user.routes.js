@@ -20,6 +20,7 @@ import {
     removeFromWatchHistory,
     generateAccessTokenAndRefreshToken,
     searchUser,
+    resetPassword,
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import passport from "passport";
@@ -38,12 +39,6 @@ router.route("/auth/google").get(
         scope: ["profile", "email"],
     })
 );
-// router.route("/loggedin").get(
-//     passport.authenticate("google", {
-//         scope: ["profile", "email"],
-//         successRedirect: process.env.APP_VERIFICATION_URL,
-//     })
-// );
 router.get(
     "/auth/google/callback",
     passport.authenticate("google", { session: false }),
@@ -72,6 +67,7 @@ router.patch("/update-avatar", verifyJWT, updateAvatar);
 router.route("/update-coverImage").patch(verifyJWT, updateCoverImage);
 router.route("/channel/:username").get(verifyJWT, getChannelProfile);
 router.route("/watch-history").get(verifyJWT, getWatchHistory);
+router.route("/reset-password").patch(verifyJWT, resetPassword);
 router
     .route("/watch-history/remove/:videoId")
     .delete(verifyJWT, removeFromWatchHistory);

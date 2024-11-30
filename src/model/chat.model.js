@@ -10,6 +10,9 @@ const chatSchema = new Schema(
             type: Boolean,
             default: false,
         },
+        groupAvatar: {
+            type: String,
+        },
         users: [
             {
                 type: mongoose.Schema.Types.ObjectId,

@@ -7,32 +7,49 @@ import { User } from "../model/user.model.js";
 import { Message } from "../model/message.model.js";
 
 const accessChat = asyncHandler(async (req, res) => {
-    const userId = req.body.userId;
+    const { chatId, userId } = req.body;
 
-    if (!userId) {
-        throw new ApiError(400, "User id is missing");
+    // Validate input
+    if (!chatId && !userId) {
+        throw new ApiError(400, "UserId or ChatId is required");
     }
 
-    let isChat = await Chat.find({
-        isGroupChat: false,
-        $and: [
-            { users: { $elemMatch: { $eq: req.user._id } } },
-            { users: { $elemMatch: { $eq: userId } } },
-        ],
-    })
-        .populate("users", "username fullName avatar")
-        .populate("latestMessage");
+    let isChat;
 
-    isChat = await User.populate(isChat, {
-        path: "latestMessage.sender",
-        select: "fullName avatar username",
-    });
+    if (userId) {
+        // Find chat by userId
+        isChat = await Chat.findOne({
+            isGroupChat: false,
+            users: { $all: [req.user._id, userId] }, // Simplified $and with $all
+        })
+            .populate("users", "username fullName avatar")
+            .populate("latestMessage");
+    } else if (chatId) {
+        // Find chat by chatId
+        isChat = await Chat.findById(chatId)
+            .populate("users", "username fullName avatar")
+            .populate("latestMessage");
 
-    if (isChat.length > 0) {
-        res.status(200).json(
-            new ApiResponse(200, isChat[0], "chat fetched successfully")
-        );
-    } else {
+        if (!isChat) {
+            throw new ApiError(404, "Chat not found");
+        }
+    }
+
+    // Populate latestMessage sender details
+    if (isChat) {
+        isChat = await User.populate(isChat, {
+            path: "latestMessage.sender",
+            select: "fullName avatar username",
+        });
+
+        return res
+            .status(200)
+            .json(new ApiResponse(200, isChat, "Chat fetched successfully"));
+    }
+
+    console.log("chat : ", isChat);
+    // Create a new chat if userId is provided and no existing chat is found
+    if (userId && !isChat) {
         const newChatData = {
             users: [req.user._id, userId],
             isGroupChat: false,
@@ -40,21 +57,31 @@ const accessChat = asyncHandler(async (req, res) => {
 
         try {
             const createdChat = await Chat.create(newChatData);
-
-            const fullChat = await Chat.findOne({
-                _id: createdChat._id,
-            }).populate("users", "username fullName avatar");
-            res.status(200).json(
-                new ApiResponse(200, fullChat, "chat fetched successfully")
+            const fullChat = await Chat.findById(createdChat._id).populate(
+                "users",
+                "username fullName avatar"
             );
+
+            return res
+                .status(200)
+                .json(
+                    new ApiResponse(
+                        200,
+                        fullChat,
+                        "New chat created successfully"
+                    )
+                );
         } catch (error) {
             console.error(error);
             throw new ApiError(
                 500,
-                `Something went wrong while creating new chat, error : ${error.message}`
+                `Error while creating new chat: ${error.message}`
             );
         }
     }
+
+    // Fallback for invalid requests
+    throw new ApiError(400, "Invalid request");
 });
 
 const fetchChat = asyncHandler(async (req, res) => {

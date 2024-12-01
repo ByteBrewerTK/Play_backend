@@ -18,6 +18,7 @@ import {
 import generateOtp from "../utils/generateOtp.js";
 import { OTP } from "../model/otp.js";
 import { Setting } from "../model/setting.model.js";
+import { validatePassword } from "../utils/validatePassword.js";
 
 const otpExpiration = () => Date.now() + 5 * 60 * 1000; // 5 minutes
 
@@ -30,7 +31,10 @@ const searchUser = asyncHandler(async (req, res) => {
               ],
           }
         : {};
-    const users = await User.find(keyword).find({ _id: { $ne: req.user._id } });
+    const users = await User.find(keyword).find({
+        _id: { $ne: req.user._id },
+        isConfirmed: true,
+    });
     return res
         .status(200)
         .json(new ApiResponse(200, users, "Successfully searched"));
@@ -71,7 +75,17 @@ const registerUser = asyncHandler(async (req, res) => {
     // Access data from request body
     const { email, fullName, password } = req.body;
 
-    console.log(req.body);
+    if (!email.trim() || !fullName.trim() || !password) {
+        throw new ApiError(400, "All fields are required");
+    }
+
+    // console.log(!validatePassword(password));
+    if (!validatePassword(password)) {
+        throw new ApiError(
+            422,
+            "Password must be 8-16 characters with at least one uppercase and one lowercase letter."
+        );
+    }
 
     const [username] = email.split("@");
 

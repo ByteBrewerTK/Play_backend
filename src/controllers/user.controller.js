@@ -264,7 +264,6 @@ const loginUser = asyncHandler(async (req, res) => {
             "user not registered on this username or email"
         );
     }
-    console.log(user.isConfirmed);
 
     if (user.isConfirmed === false) {
         return res
@@ -931,8 +930,9 @@ const checkUsernameAvailable = asyncHandler(async (req, res) => {
         );
 });
 
-const resetPassword = asyncHandler(async (req, res) => {
+const resetPasswordRequest = asyncHandler(async (req, res) => {
     const { email } = req.body;
+    const type = "Reset";
 
     if (!email.trim()) {
         throw new ApiError(400, "Email is required");
@@ -942,21 +942,88 @@ const resetPassword = asyncHandler(async (req, res) => {
         throw new ApiError(422, "Invalid email domain");
     }
 
-    const isUserExisted = await User.findOne({ email });
+    const isUserExisted = await User.findOne({ email }).select(
+        "-password -watchHistory"
+    );
 
     if (!isUserExisted) {
         throw new ApiError(404, "User not found");
     }
+    const userId = isUserExisted._id;
+
+    const otp = generateOtp();
+    if (!otp) {
+        throw new ApiError(500, "Failed to generate OTP");
+    }
+
+    await OTP.deleteMany({ user: userId, type });
+    await Promise.all([
+        OTP.create({
+            code: otp,
+            user: userId,
+            expiresAt: otpExpiration(),
+            type,
+        }),
+        sendConfirmationOtp(email, otp),
+    ]);
+
+    return res
+        .status(204)
+        .json(new ApiResponse(204, {}, "Password reset request accepted"));
+});
+
+const verifyResetPasswordRequest = asyncHandler(async (req, res) => {
+    const { otp, email } = req.body;
+
+    if (!otp) {
+        throw newApiError("Otp is required");
+    }
+    const isUserExisted = await User.findOne({
+        email,
+    }).select("-password -watchHistory");
+
+    if (!isUserExisted) {
+        throw new ApiError(403, "Invalid request");
+    }
+
+    const isOtp = await OTP.findOne({
+        user: isUserExisted._id,
+        type: "Reset",
+        expiresAt: { $gt: Date.now() },
+    });
+
+    if (!isOtp) {
+        throw new ApiError(401, "Otp Expired, Please resend");
+    }
+
+    if (!(isOtp.code === otp)) {
+        throw new ApiError(401, "Invalid Otp, Please retry");
+    }
+
+    await OTP.deleteMany({ user: isUserExisted._id, type: "Reset" });
+
+    const payload = {
+        _id: isUserExisted._id,
+    };
+
+    const resetToken = await jwt.sign(
+        payload,
+        process.env.REFRESH_TOKEN_SECRET,
+        {
+            expiresIn: "1m",
+        }
+    );
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+    console.log(resetToken);
 
     return res
         .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                isUserExisted,
-                "Password reset request accepted"
-            )
-        );
+        .cookie("resetToken", resetToken, options)
+        .json(new ApiResponse(200, {}, "Otp Successfully Verified"));
 });
 
 export {
@@ -980,5 +1047,6 @@ export {
     resendVerificationMail,
     checkUsernameAvailable,
     generateAccessTokenAndRefreshToken,
-    resetPassword,
+    resetPasswordRequest,
+    verifyResetPasswordRequest,
 };

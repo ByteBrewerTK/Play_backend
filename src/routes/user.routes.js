@@ -22,6 +22,7 @@ import {
     searchUser,
     resetPasswordRequest,
     verifyResetPasswordRequest,
+    resetPassword,
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
 import passport from "passport";
@@ -69,7 +70,8 @@ router.route("/update-coverImage").patch(verifyJWT, updateCoverImage);
 router.route("/channel/:username").get(verifyJWT, getChannelProfile);
 router.route("/watch-history").get(verifyJWT, getWatchHistory);
 router.route("/reset-request").post(resetPasswordRequest);
-router.route("/verify-reset").patch(verifyResetPasswordRequest);
+router.route("/verify-reset").post(verifyResetPasswordRequest);
+router.route("/reset-password").patch(resetPassword);
 router
     .route("/watch-history/remove/:videoId")
     .delete(verifyJWT, removeFromWatchHistory);

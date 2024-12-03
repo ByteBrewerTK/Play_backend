@@ -950,6 +950,24 @@ const resetPasswordRequest = asyncHandler(async (req, res) => {
         throw new ApiError(404, "User not found");
     }
     const userId = isUserExisted._id;
+    const coolDownPeriod = 60 * 1000;
+    const oneMinuteAgo = new Date(Date.now() - coolDownPeriod);
+    const recentOtp = await OTP.findOne({
+        user: userId,
+        type: type,
+        createdAt: { $gte: oneMinuteAgo },
+    });
+    if (recentOtp) {
+        const timeElapsed =
+            Date.now() - new Date(recentOtp.createdAt).getTime();
+        const retryAfter = Math.ceil((coolDownPeriod - timeElapsed) / 1000);
+
+        res.setHeader("Retry-After", retryAfter);
+        throw new ApiError(
+            429,
+            "Too many OTP requests. Please wait before resending."
+        );
+    }
 
     const otp = generateOtp();
     if (!otp) {
@@ -964,12 +982,20 @@ const resetPasswordRequest = asyncHandler(async (req, res) => {
             expiresAt: otpExpiration(),
             type,
         }),
-        sendConfirmationOtp(email, otp),
+        // sendConfirmationOtp(email, otp),
     ]);
+
+    res.setHeader("Retry-After", coolDownPeriod / 1000);
 
     return res
         .status(204)
-        .json(new ApiResponse(204, {}, "Password reset request accepted"));
+        .json(
+            new ApiResponse(
+                204,
+                { coolDownPeriod },
+                "Password reset request accepted"
+            )
+        );
 });
 
 const verifyResetPasswordRequest = asyncHandler(async (req, res) => {
@@ -1006,15 +1032,12 @@ const verifyResetPasswordRequest = asyncHandler(async (req, res) => {
         _id: isUserExisted._id,
     };
 
-    const resetToken = await jwt.sign(
-        payload,
-        process.env.REFRESH_TOKEN_SECRET,
-        {
-            expiresIn: "1m",
-        }
-    );
+    const resetToken = await jwt.sign(payload, process.env.RESET_TOKEN_SECRET, {
+        expiresIn: "10m",
+    });
 
     const options = {
+        maxAge: 5 * 60 * 1000,
         httpOnly: true,
         secure: true,
     };
@@ -1023,7 +1046,83 @@ const verifyResetPasswordRequest = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .cookie("resetToken", resetToken, options)
-        .json(new ApiResponse(200, {}, "Otp Successfully Verified"));
+        .json(
+            new ApiResponse(200, { resetToken }, "Otp Successfully Verified")
+        );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const resetToken =
+        req.cookies?.resetToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
+
+    const { password } = req.body;
+
+    if (!resetToken) {
+        throw new ApiError(401, "Unauthorized request");
+    }
+
+    jwt.verify(resetToken, process.env.RESET_TOKEN_SECRET, (err) => {
+        if (err) {
+            console.error("JWT Error : ", err);
+            throw new ApiError(401, "Unauthorized request");
+        }
+    });
+
+    if (!validatePassword(password)) {
+        throw new ApiError(403, "Invalid Password");
+    }
+
+    const decodedUser = await jwt.decode(resetToken);
+    if (!decodedUser) {
+        throw new ApiError(500, "Something went wrong while decoding jwt");
+    }
+    const user = await User.findById(decodedUser._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+    user.password = password;
+    await user.save();
+
+    const { accessToken, refreshToken } =
+        await generateAccessTokenAndRefreshToken(user._id);
+
+    const loggedInUser = await User.findById(user._id).select(
+        "-password -refreshToken -watchHistory"
+    );
+    const settings = await Setting.findOne({ user: loggedInUser._id });
+
+    if (!settings) {
+        console.error("Something went wrong while fetching user settings");
+        throw new ApiError(500, "Something went wrong");
+    }
+
+    const options = {
+        httpOnly: true,
+        secure: true,
+    };
+
+    return res
+        .clearCookie("resetToken", {
+            path: "/",
+        })
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    loggedInUser,
+                    settings,
+                    tokens: {
+                        refreshToken,
+                        accessToken,
+                    },
+                },
+                "User logged in successfully"
+            )
+        );
 });
 
 export {
@@ -1049,4 +1148,5 @@ export {
     generateAccessTokenAndRefreshToken,
     resetPasswordRequest,
     verifyResetPasswordRequest,
+    resetPassword,
 };

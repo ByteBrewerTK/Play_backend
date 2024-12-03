@@ -982,7 +982,7 @@ const resetPasswordRequest = asyncHandler(async (req, res) => {
             expiresAt: otpExpiration(),
             type,
         }),
-        // sendConfirmationOtp(email, otp),
+        sendConfirmationOtp(email, otp),
     ]);
 
     res.setHeader("Retry-After", coolDownPeriod / 1000);

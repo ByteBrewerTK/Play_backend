@@ -6,7 +6,6 @@ import { generateAccessTokenAndRefreshToken } from "./user.controller.js";
 
 const googleAuthController = asyncHandler(async (req, res) => {
     console.log("ReqUser : ", req.user);
-    console.log(req.isAuthenticated());
     if (!req.isAuthenticated()) {
         throw new ApiError(403, "Unauthorized Access");
     }

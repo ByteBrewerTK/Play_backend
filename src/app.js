@@ -29,6 +29,7 @@ app.use(
 
 app.use(
     cors({
+        exposedHeaders: ["Retry-After"],
         origin: process.env.CORS_ORIGIN,
         methods: ["GET", "POST", "PATCH", "DELETE"],
         allowedHeaders: ["Authorization", "Content-Type"],

@@ -3,7 +3,7 @@ import connectDB from "./db/index.js";
 import { app } from "./app.js";
 import initCronJobs from "./config/cron.js";
 import { connectPassport } from "./utils/Provider.js";
-import { Server } from "socket.io";
+import socketHandler from "./sockets/socket.js";
 
 const PORT = process.env.PORT || 8000;
 connectDB()
@@ -16,22 +16,8 @@ connectDB()
             console.log(`Server is running on port : ${PORT}`);
         });
 
-        // WebSocket
-        const io = new Server(server, {
-            pingTimeout: 60000,
-            cors: {
-                origin: "http://localhost:5174",
-            },
-        });
-
-        io.on("connection", (socket) => {
-            console.log("Connected to socket ");
-
-            socket.on("setup", (userData) => {
-                socket.join(userData._id);
-                socket.emit("connected");
-            });
-        });
+        // Socket
+        socketHandler(server);
 
         // Initialize cron jobs
         initCronJobs();

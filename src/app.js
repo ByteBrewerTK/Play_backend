@@ -3,7 +3,6 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import passport from "passport";
 import expressSession from "express-session";
-
 import userRouter from "./routes/user.routes.js";
 import videoRouter from "./routes/video.routes.js";
 import tweetRouter from "./routes/tweet.routes.js";
@@ -19,6 +18,15 @@ import messageRoute from "./routes/message.routes.js";
 const app = express();
 
 // Middleware
+app.use((req, res, next) => {
+    const referer = req.headers.referer || req.headers.origin;
+    if (!referer || !referer.startsWith(process.env.CORS_ORIGIN)) {
+        console.log("Outside Access");
+        return res.status(403).json({ message: "Forbidden" });
+    }
+    next();
+});
+
 app.use(express.json({ limit: process.env.SERVER_LIMIT || "16kb" }));
 app.use(
     express.urlencoded({

@@ -20,8 +20,14 @@ const app = express();
 // Middleware
 app.use((req, res, next) => {
     const referer = req.headers.referer || req.headers.origin;
-    if (!referer || !referer.startsWith(process.env.CORS_ORIGIN)) {
-        console.log("Outside Access");
+    if (
+        !referer ||
+        !(
+            referer.startsWith(process.env.CORS_ORIGIN) ||
+            referer.startsWith(process.env.BACKEND_API_URL)
+        )
+    ) {
+        console.log("Outside Access Request from : ", referer);
         return res.status(403).json({ message: "Forbidden" });
     }
     next();

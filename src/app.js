@@ -24,7 +24,8 @@ app.use((req, res, next) => {
         !referer ||
         !(
             referer.startsWith(process.env.CORS_ORIGIN) ||
-            referer.startsWith(process.env.BACKEND_API_URL)
+            referer.startsWith(process.env.BACKEND_API_URL) ||
+            referer.startsWith(process.env.GOOGLE_AUTH_URL)
         )
     ) {
         console.log("Outside Access Request from : ", referer);

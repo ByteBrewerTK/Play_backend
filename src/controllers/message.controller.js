@@ -8,8 +8,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 const sendMessage = asyncHandler(async (req, res) => {
     const { chatId, content } = req.body;
 
-    console.info("ChatId : ", chatId);
-    console.info("content : ", content);
     if (!(chatId && content.trim())) {
         throw new ApiError(400, "All fields are required");
     }
@@ -50,7 +48,6 @@ const sendMessage = asyncHandler(async (req, res) => {
 
 const allMessages = asyncHandler(async (req, res) => {
     const { chatId } = req.params;
-    console.info("chatId : ", chatId);
 
     if (!chatId) {
         throw new ApiError(400, "Invalid Chat id");

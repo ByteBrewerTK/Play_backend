@@ -5,7 +5,7 @@ import passport from "passport";
 import expressSession from "express-session";
 import userRouter from "./routes/user.routes.js";
 import videoRouter from "./routes/video.routes.js";
-import tweetRouter from "./routes/tweet.routes.js";
+import lynkRouter from "./routes/lynk.routes.js";
 import playlistRouter from "./routes/playlist.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import likeRouter from "./routes/like.routes.js";
@@ -18,21 +18,21 @@ import messageRoute from "./routes/message.routes.js";
 const app = express();
 
 // Middleware
-app.use((req, res, next) => {
-    const referer = req.headers.referer || req.headers.origin;
-    if (
-        !referer ||
-        !(
-            referer.startsWith(process.env.CORS_ORIGIN) ||
-            referer.startsWith(process.env.BACKEND_API_URL) ||
-            referer.startsWith(process.env.GOOGLE_AUTH_URL)
-        )
-    ) {
-        console.log("Outside Access Request from : ", referer);
-        return res.status(403).json({ message: "Forbidden" });
-    }
-    next();
-});
+// app.use((req, res, next) => {
+//     const referer = req.headers.referer || req.headers.origin;
+//     if (
+//         !referer ||
+//         !(
+//             referer.startsWith(process.env.CORS_ORIGIN) ||
+//             referer.startsWith(process.env.BACKEND_API_URL) ||
+//             referer.startsWith(process.env.GOOGLE_AUTH_URL)
+//         )
+//     ) {
+//         console.log("Outside Access Request from : ", referer);
+//         return res.status(403).json({ message: "Forbidden" });
+//     }
+//     next();
+// });
 
 app.use(express.json({ limit: process.env.SERVER_LIMIT || "16kb" }));
 app.use(
@@ -45,7 +45,7 @@ app.use(
 app.use(
     cors({
         exposedHeaders: ["Retry-After"],
-        origin: process.env.CORS_ORIGIN,
+        origin: "*",
         methods: ["GET", "POST", "PATCH", "DELETE"],
         allowedHeaders: ["Authorization", "Content-Type"],
         credentials: true,
@@ -73,7 +73,7 @@ app.get("/", (__, res) => {
 
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
-app.use("/api/v1/tweet", tweetRouter);
+app.use("/api/v1/lynks", lynkRouter);
 app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/like", likeRouter);

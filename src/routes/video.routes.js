@@ -8,6 +8,7 @@ import {
     updateVideo,
     togglePublishStatus,
     getAllVideos,
+    getLikedVideosOfUser,
 } from "../controllers/video.controller.js";
 
 const router = Router();
@@ -17,6 +18,7 @@ router.use(verifyJWT);
 router.route("/").post(publishAVideo);
 
 router.route("/").get(getAllVideos);
+router.route("/liked-videos").get(getLikedVideosOfUser);
 router.route("/fetch-all-videos/:username").get(getAllVideosOfUser);
 
 router

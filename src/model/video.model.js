@@ -27,9 +27,31 @@ const videoSchema = new Schema(
         duration: {
             type: Number,
         },
+
         isPublished: {
             type: Boolean,
             default: true,
+        },
+    },
+    { timestamps: true }
+);
+
+const videoMetadataSchema = new Schema(
+    {
+        video: {
+            type: Schema.Types.ObjectId,
+            ref: "Video",
+            required: true,
+            unique: true,
+        },
+        tags: [String],
+        embedding: {
+            type: [Number],
+            default: [],
+        },
+        uploadedAt: {
+            type: Date,
+            default: Date.now,
         },
     },
     { timestamps: true }
@@ -53,4 +75,8 @@ const viewSchema = new Schema({
 videoSchema.plugin(aggregatePaginate);
 
 export const Video = mongoose.model("Video", videoSchema);
+export const VideoMetadata = mongoose.model(
+    "VideoMetadata",
+    videoMetadataSchema
+);
 export const View = mongoose.model("View", viewSchema);

@@ -147,6 +147,7 @@ const getVideoDuration = (videoUrl) => {
 };
 
 const publishAVideo = asyncHandler(async (req, res) => {
+    let tags = [];
     return new Promise((resolve, reject) => {
         const busboy = Busboy({
             headers: req.headers,
@@ -160,7 +161,6 @@ const publishAVideo = asyncHandler(async (req, res) => {
         let videoUrl = "";
         let title = "";
         let description = "";
-        let tags = [];
         const uploadPromises = [];
 
         busboy.on("file", (fieldname, file, filename) => {

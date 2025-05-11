@@ -78,17 +78,44 @@ export const toggleLike = async (req, res) => {
     }
 };
 
-// Get all Lynks (with pagination)
 export const getAllLynks = async (req, res) => {
     try {
         const { page = 1, limit = 10 } = req.query;
-        console.log("inside lynk");
+        const skip = (page - 1) * limit;
 
-        const lynks = await Lynk.find({ isReply: false })
-            .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
-            .limit(Number(limit))
-            .populate("author", "username avatar");
+        const lynks = await Lynk.aggregate([
+            { $match: { isReply: false } },
+            { $sort: { createdAt: -1 } },
+            { $skip: Number(skip) },
+            { $limit: Number(limit) },
+            {
+                $lookup: {
+                    from: "likes",
+                    localField: "_id",
+                    foreignField: "lynkId",
+                    as: "likes",
+                },
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "author",
+                    foreignField: "_id",
+                    as: "author",
+                },
+            },
+            {
+                $unwind: "$author",
+            },
+            {
+                $project: {
+                    content: 1,
+                    createdAt: 1,
+                    author: { username: 1, avatar: 1 },
+                    likes: 1,
+                },
+            },
+        ]);
 
         console.log(lynks);
 

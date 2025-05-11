@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Busboy from "busboy";
 import { User } from "../model/user.model.js";
-import { Video, View } from "../model/video.model.js";
+import { Video, View, VideoMetadata } from "../model/video.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
@@ -11,6 +11,7 @@ import { Like } from "../model/like.model.js";
 import { v2 as cloudinary } from "cloudinary";
 import ffmpeg from "fluent-ffmpeg";
 import ffmpegPath from "ffmpeg-static";
+import generateEmbedding from "../utils/generateEmbedding.js";
 
 const getAllVideos = asyncHandler(async (req, res) => {
     const { page = 1, limit = 10, query, sortBy, sortType } = req.query;
@@ -159,6 +160,7 @@ const publishAVideo = asyncHandler(async (req, res) => {
         let videoUrl = "";
         let title = "";
         let description = "";
+        let tags = [];
         const uploadPromises = [];
 
         busboy.on("file", (fieldname, file, filename) => {
@@ -181,8 +183,19 @@ const publishAVideo = asyncHandler(async (req, res) => {
         });
 
         busboy.on("field", (fieldname, val) => {
-            if (fieldname === "title") title = val.trim();
-            if (fieldname === "description") description = val.trim();
+            const value = val.trim();
+
+            switch (fieldname) {
+                case "title":
+                    title = value;
+                    break;
+                case "description":
+                    description = value;
+                    break;
+                case "tags":
+                    tags.push(value);
+                    break;
+            }
         });
 
         busboy.on("finish", async () => {
@@ -245,11 +258,16 @@ const publishAVideo = asyncHandler(async (req, res) => {
         .then(async (result) => {
             const { title, description, videoUrl, thumbnailUrl, duration } =
                 result.data;
+            const embedding = await generateEmbedding(
+                `${title} ${description}`
+            );
+            console.log(embedding);
+
             const video = await Video.create({
                 videoFile: videoUrl,
                 thumbnail: thumbnailUrl,
                 owner: req.user._id,
-                duration, // Add the duration here
+                duration,
                 title,
                 description,
             });
@@ -260,14 +278,40 @@ const publishAVideo = asyncHandler(async (req, res) => {
                     "Something went wrong while creating new video object on db"
                 );
             }
+
+            const videoMetaData = await VideoMetadata.create({
+                video: video._id,
+                tags,
+                embedding,
+            });
+            console.log("videoMetaData : ", videoMetaData);
+
+            if (!videoMetaData) {
+                throw new ApiError(500, "Video metadata issue");
+            }
+            // Check if result.status is defined
+            if (!result || result.status === undefined) {
+                return res
+                    .status(500)
+                    .json(new ApiResponse(500, null, "Unexpected error"));
+            }
+
+            // Use result.status if it's defined, otherwise fallback to a default status code
             return res
-                .status(result.status)
-                .json(new ApiResponse(result.status, video, result.message));
+                .status(result.status || 200)
+                .json(
+                    new ApiResponse(result.status || 200, video, result.message)
+                );
         })
         .catch((error) => {
+            const status = error?.status || 500;
+            const message = error?.message || "Internal Server Error";
+
+            console.error("Error in publishAVideo:", error); // helpful for debugging
+
             return res
-                .status(error.status)
-                .json(new ApiResponse(error.status, null, error.message));
+                .status(status)
+                .json(new ApiResponse(status, null, message));
         });
 });
 const updateVideo = asyncHandler(async (req, res) => {
@@ -644,6 +688,111 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, {}, "publish state updated successfully"));
 });
 
+const getLikedVideosOfUser = asyncHandler(async (req, res) => {
+    const userId = req.user?._id;
+
+    if (!userId) {
+        throw new ApiError(401, "User not authenticated");
+    }
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: userId,
+            },
+        },
+        {
+            $lookup: {
+                from: "likes",
+                localField: "_id",
+                foreignField: "user",
+                as: "likes",
+                pipeline: [
+                    {
+                        $match: {
+                            onModel: "Video",
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "videos",
+                            localField: "entity",
+                            foreignField: "_id",
+                            as: "video",
+                        },
+                    },
+                    { $unwind: "$video" },
+                    {
+                        $lookup: {
+                            from: "views",
+                            localField: "video._id",
+                            foreignField: "video",
+                            as: "views",
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "video.owner",
+                            foreignField: "_id",
+                            as: "videoOwner",
+                        },
+                    },
+                    { $unwind: "$videoOwner" },
+                    {
+                        $addFields: {
+                            "video.views": { $size: "$views" },
+                            "video.username": "$videoOwner.username",
+                            "video.avatar": "$videoOwner.avatar",
+                            "video.channelName": "$videoOwner.fullName",
+                        },
+                    },
+                    {
+                        $project: {
+                            _id: 0,
+                            video: {
+                                _id: 1,
+                                title: 1,
+                                thumbnail: 1,
+                                duration: 1,
+                                createdAt: 1,
+                                views: 1,
+                                username: 1,
+                                avatar: 1,
+                                channelName: 1,
+                            },
+                        },
+                    },
+                    {
+                        $replaceRoot: {
+                            newRoot: "$video",
+                        },
+                    },
+                ],
+            },
+        },
+        {
+            $project: {
+                likedVideos: "$likes",
+            },
+        },
+    ]);
+
+    if (!user?.length) {
+        throw new ApiError(404, "No liked videos found");
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                user[0].likedVideos,
+                "Liked videos fetched successfully"
+            )
+        );
+});
+
 export {
     publishAVideo,
     updateVideo,
@@ -652,4 +801,5 @@ export {
     deleteVideo,
     togglePublishStatus,
     getAllVideos,
+    getLikedVideosOfUser,
 };

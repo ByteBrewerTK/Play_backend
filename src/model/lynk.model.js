@@ -23,12 +23,6 @@ const lynkSchema = new mongoose.Schema(
                 },
             },
         ],
-        likes: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "User",
-            },
-        ],
         replies: [
             {
                 type: mongoose.Schema.Types.ObjectId,

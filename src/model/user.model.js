@@ -25,6 +25,16 @@ const userSchema = new Schema(
             trim: true,
             index: true,
         },
+        age: {
+            type: String,
+            enum: ["18+", "13+", "kid"],
+            default: "kid",
+        },
+        gender: {
+            type: String,
+            enum: ["Male", "Female", "Other"],
+            default: "Other",
+        },
         avatar: {
             type: String,
             required: true,

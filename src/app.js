@@ -14,25 +14,9 @@ import dashboardRouter from "./routes/dashboard.routes.js";
 import settingRouter from "./routes/setting.routes.js";
 import chatRoute from "./routes/chat.routes.js";
 import messageRoute from "./routes/message.routes.js";
+import ageDetectionRouter from "./routes/ageDetection.routes.js";
 
 const app = express();
-
-// Middleware
-// app.use((req, res, next) => {
-//     const referer = req.headers.referer || req.headers.origin;
-//     if (
-//         !referer ||
-//         !(
-//             referer.startsWith(process.env.CORS_ORIGIN) ||
-//             referer.startsWith(process.env.BACKEND_API_URL) ||
-//             referer.startsWith(process.env.GOOGLE_AUTH_URL)
-//         )
-//     ) {
-//         console.log("Outside Access Request from : ", referer);
-//         return res.status(403).json({ message: "Forbidden" });
-//     }
-//     next();
-// });
 
 app.use(express.json({ limit: process.env.SERVER_LIMIT || "16kb" }));
 app.use(
@@ -71,6 +55,7 @@ app.get("/", (__, res) => {
     res.send("<h1>Server is running</h1>");
 });
 
+app.use("/api/v1/detection", ageDetectionRouter);
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/video", videoRouter);
 app.use("/api/v1/lynks", lynkRouter);

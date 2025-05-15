@@ -176,9 +176,6 @@ const emailConfirmation = asyncHandler(async (req, res) => {
     const { token } = req.params;
     const email = req.query?.e;
 
-    console.log("token : ", token);
-    console.log("email : ", email);
-
     if (!(token && email)) {
         throw new ApiError(404, "Invalid credentials");
     }

@@ -53,7 +53,7 @@ router.get(
     }
 );
 
-router.get("/profile", googleAuthController);
+router.route("/profile").get(googleAuthController);
 router.route("/check/:username").get(checkUsernameAvailable);
 
 // Secure routes

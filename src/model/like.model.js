@@ -15,7 +15,7 @@ const likeSchema = new Schema(
         onModel: {
             type: String,
             required: true,
-            enum: ["Video", "Tweet", "Comment"],
+            enum: ["Video", "Lynk", "Comment"],
         },
     },
     { timestamps: true }
